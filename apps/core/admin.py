@@ -1,6 +1,6 @@
 from django.contrib import admin
-from apps.core.forms import GrupoTrabalhoForm, ResponsavelGrupoTrabalhoInLineForm, DivisaoForm
-from apps.core.models import GrupoTrabalho, GrupoAcesso, Divisao, GrupoPortal, ResponsavelGrupoTrabalho, ColaboradorGrupoAcesso, Predio
+from apps.core.forms import OperatingSystemInLineForm, TenantsInLineForm, GrupoTrabalhoForm, ResponsavelGrupoTrabalhoInLineForm, DivisaoForm
+from apps.core.models import OperatingSystem, Tenants, GrupoTrabalho, GrupoAcesso, Divisao, GrupoPortal, ResponsavelGrupoTrabalho, ColaboradorGrupoAcesso, Predio
 from apps.core.utils.freeipa import FreeIPA
 from apps.infra.admin import StorageAreaGrupoTrabalhoInLine, GrupoAcessoEquipamentoInLineRead
 from django.contrib.auth.models import Group
@@ -56,16 +56,23 @@ class GrupoAcessoInLine(admin.TabularInline):
 
 class ColaboradorGrupoAcessoInLineRead(admin.TabularInline):
     model = ColaboradorGrupoAcesso
-    fields = ("grupo_acesso", "status", "atualizacao")
-    readonly_fields = ("grupo_acesso", "status", "atualizacao")
+    fields = ("grupo_acesso", "status", "atualizacao", "equipamentos")
+    readonly_fields = ("grupo_acesso", "status", "atualizacao", "equipamentos")
     extra = 0
     can_delete = False
+
+    # Exibir os equipamentos dentro do grupo de acesso
+    def equipamentos(self, obj):
+        equipamentos = obj.grupo_acesso.equipamentogrupoacesso_set.all()
+        return ", ".join([e.equipamento.nome() for e in equipamentos])
+    equipamentos.short_description = "Equipamentos"
 
     def has_delete_permission(self, request, obj=None):
         return False
 
     def has_add_permission(self, request, obj=None):
         return False
+
 
 
 class GrupoAcessoColaboradorInLineRead(admin.TabularInline):
@@ -204,5 +211,35 @@ class GrupoPortalAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     ordering = ("name",)
     filter_horizontal = ("permissions",)
+
+@admin.register(Tenants)
+class TenantsAdmin(admin.ModelAdmin):
+    model = Tenants
+    search_fields = ("tenants",)
+    ordering = ("tenants",)
+    form = TenantsInLineForm
+
+    def add_view(self, request, form_url="", extra_context=None):
+        usuario_logado = request.user
+        extra_context = dict(usuario_logado=usuario_logado)
+        return super().add_view(request, form_url, extra_context)
+    
+    def save_model(self, request, obj, form, change):
+        return super().save_model(request, obj, form, change)
+    
+@admin.register(OperatingSystem)
+class OperatingSystemAdmin(admin.ModelAdmin):
+    model = OperatingSystem
+    search_fields = ("so",)
+    ordering = ("so",)
+    form = OperatingSystemInLineForm
+        
+    def add_view(self, request, form_url="", extra_context=None):
+        usuario_logado = request.user
+        extra_context = dict(usuario_logado=usuario_logado)
+        return super().add_view(request, form_url, extra_context)
+    
+    def save_model(self, request, obj, form, change):
+        return super().save_model(request, obj, form, change)
 
 admin.site.unregister(Group)

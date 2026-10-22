@@ -59,10 +59,16 @@ class SupercomputadorHistView(TemplateView):
         context = super().get_context_data(**kwargs)
         supercomputador = get_object_or_404(Supercomputador, id=kwargs["pk"])
         try:
-            kafka_client_historico = Kafka(supercomputador.kafka_topico_historico, 580)
+            days = 7
+            lines = 288*days
+            kafka_client_historico = Kafka(supercomputador.kafka_topico_historico, int(lines))
+            # Esse valor é referente ao numero de linhas que irá trazer do kafka #
+            # 288 referente a 1 dia #
+            # 2018 referente a 7 dias # 
+            # 8640 referente a 30 dias #
             kafka_client_historico.get_kafka_topic_last()
             nodes_bruto = kafka_client_historico.get_kafka_topic()
-            context["grafico"] = self.get_grafico_historico(pd.DataFrame(nodes_bruto))
+            context["grafico"] = self.get_grafico_historico(pd.DataFrame(nodes_bruto), days)
             context["numero"] = SupercomputadorHistorico(nodes_bruto[-1])
             context["supercomputador"] = supercomputador
             return context
@@ -72,7 +78,7 @@ class SupercomputadorHistView(TemplateView):
             context["supercomputador"] = None
         return context
 
-    def get_grafico_historico(self, df_nodes_bruto):
+    def get_grafico_historico(self, df_nodes_bruto, days):
         # corrigindo a data de timestamp para datetime
         df_nodes_bruto["atualizacao"] = pd.to_datetime(df_nodes_bruto["update"], unit="s")
         df_nodes_bruto["atualizacao"] = df_nodes_bruto["atualizacao"].apply(lambda x: x.replace(second=0))
@@ -84,13 +90,13 @@ class SupercomputadorHistView(TemplateView):
         df_nodes_bruto = df_nodes_bruto.loc[:, ["atualizacao", "service", "running", "free", "down", "jobs"]]
         # Cria Eixo X dos Ultimos 6 Horas
         last_time = df_nodes_bruto["atualizacao"].iloc[-1]
-        dti = pd.DataFrame({"atualizacao": pd.date_range(start=(last_time - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:00"), end=last_time)}).fillna(0)
+        dti = pd.DataFrame({"atualizacao": pd.date_range(start=(last_time - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:00"), end=last_time)}).fillna(0)
         # Merge dos date + data
         serie = pd.merge_ordered(dti, df_nodes_bruto).fillna(0)
         grafico = Echarts()
         grafico.set_color(["red", "#ffa726", "green", "#0277bd"])
-        x_axis = AxisData("category", "bottom", [x.strftime("%H:%M") for x in pd.to_datetime(serie["atualizacao"], format="T")])
-        x_axis.set_axis_label({"rotate": 45, "textStyle": {"fontSize": 8}})
+        x_axis = AxisData("category", "bottom", [x.strftime("%d/%m\n%H:%M") for x in pd.to_datetime(serie["atualizacao"], format="T")])
+        x_axis.set_axis_label({"rotate": 0, "textStyle": {"fontSize": 10}})
         grafico.add_x_axis(x_axis)
         y_axis = AxisBase("value")
         y_axis.set_max((serie["service"] + serie["down"] + serie["running"] + serie["free"]).max())

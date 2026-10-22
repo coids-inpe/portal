@@ -2,6 +2,7 @@ import re
 from django import forms
 from django.db.models import Q
 from django.forms import ModelChoiceField
+from apps.core.models import OperatingSystem, ServidorTenants, Tenants
 from garb.forms import GarbForm
 
 from apps.infra.models import Equipamento, EquipamentoGrupoAcesso, EquipamentoParte, HostnameIP, Ocorrencia, Rack, Servidor, ServidorHostnameIP, StorageAreaGrupoTrabalho, TemplateComando, TemplateVM
@@ -36,7 +37,7 @@ class ServidorForm(forms.ModelForm):
 
     class Meta:
         model = Servidor
-        fields = ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status"]
+        fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "servicos"]
 
     def __init__(self, *args, **kwargs):
         super(ServidorForm, self).__init__(*args, **kwargs)
@@ -48,6 +49,7 @@ class ServidorForm(forms.ModelForm):
             self.fields["consumo"].required = False
             self.fields["serie"].required = False
             self.fields["patrimonio"].required = False
+            self.fields["servicos"].required = False
 
 
 class HostnameIPForm(forms.ModelForm):
@@ -118,6 +120,18 @@ class EquipamentoGrupoAcessoForm(forms.ModelForm):
         fields = ["grupo_acesso"]
         widgets = {"grupo_acesso": forms.Select(attrs={"data-live-search": "True"})}
 
+
+class ServidorTenantsInLineForm(forms.ModelForm):
+    class Meta:
+        model = Tenants
+        fields = ["tenants"]
+        widgets = {"tenants": forms.Select(attrs={"data-live-search": "True"})}
+
+class ServidorOperatingSystemInLineForm(forms.ModelForm):
+    class Meta:
+        model = OperatingSystem
+        fields = ["so"]
+        widgets = {"so": forms.Select(attrs={"data-live-search": "True"})}
 
 class OcorrenciaInLineForm(forms.ModelForm):
     

@@ -1,3 +1,4 @@
+from apps.core.models import OperatingSystem, ServidorOperatingSystem, ServidorTenants, Tenants
 from apps.infra.utils.xen_crud import XenCrud
 from secrets import choice
 
@@ -8,8 +9,8 @@ from apps.core.utils.freeipa import FreeIPA
 from apps.infra.forms import (AmbienteVirtualServidorInLineForm,
                               EquipamentoGrupoAcessoForm, EquipamentoParteForm,
                               HostnameIPForm, HostnameIPInLineForm, OcorrenciaChecklistInLineForm,
-                              OcorrenciaInLineForm, RackForm, ServidorForm, TemplateComandoInLineForm,
-                              StorageAreaGrupoTrabalhoInLineForm)
+                              OcorrenciaInLineForm, RackForm, ServidorForm, ServidorOperatingSystemInLineForm, TemplateComandoInLineForm,
+                              StorageAreaGrupoTrabalhoInLineForm, ServidorTenantsInLineForm)
 from apps.infra.models import (AmbienteVirtual, 
                                EquipamentoGrupoAcesso, EquipamentoParte,
                                HostnameIP, Ocorrencia, Rack, Rede, Servidor,
@@ -17,7 +18,8 @@ from apps.infra.models import (AmbienteVirtual,
                                StorageAreaGrupoTrabalho, Supercomputador, TemplateComando, TemplateHostnameIP, TemplateVM)
 from apps.infra.utils.freeipa_location import Automount
 from apps.infra.utils.history import HistoryInfra
-
+from django.utils.translation import gettext_lazy as _
+from django.utils.html import format_html
 
 class OcorrenciaInLine(admin.TabularInline):
     model = Ocorrencia
@@ -66,7 +68,7 @@ class GrupoAcessoEquipamentoInLine(admin.TabularInline):
     
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         field = super(GrupoAcessoEquipamentoInLine, self).formfield_for_foreignkey(db_field, request, **kwargs)
-        field.queryset = field.queryset.filter(grupo_acesso__contains=request._obj_.tipo_uso).exclude(equipamento__id=request._obj_.id)
+        # field.queryset = field.queryset.filter(grupo_acesso__contains=request._obj_.tipo_uso).exclude(equipamento__id=request._obj_.id)
         return field
 
 
@@ -173,6 +175,26 @@ class ServicoNagiosInLine(admin.TabularInline):
         return formset
 
 
+class TenantsInLine(admin.TabularInline):
+    model = ServidorTenants
+    fields = ("tenant",)
+    extra = 0
+    form = ServidorTenantsInLineForm
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super(TenantsInLine, self).get_formset(request, obj, **kwargs)
+        return formset
+
+class OperatingSystemInLine(admin.TabularInline):
+    model = ServidorOperatingSystem
+    fields = ("so",)
+    extra = 0
+    form = ServidorOperatingSystemInLineForm
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super(OperatingSystemInLine, self).get_formset(request, obj, **kwargs)
+        return formset
+
 class OcorrenciaChecklistInLine(admin.TabularInline):
     model = Ocorrencia
     fields = ("equipamento","descricao")
@@ -231,23 +253,110 @@ class StorageAdmin(admin.ModelAdmin):
     exclude = ("rack", "rack_tamanho", "rack_posicao", "consumo", "grupos_acesso", "patrimonio", "serie",  "tipo_uso", "tipo", "status", "grupos",)
     inlines = (StorageAreaInLine, OcorrenciaInLine)
 
+class TenantsFilter(admin.SimpleListFilter):
+    title = _('Tenant')
+    parameter_name = 'tenants'
+
+    def lookups(self, request, model_admin):
+        tenants = Tenants.objects.all()
+        return [(tenant.id, tenant.tenants) for tenant in tenants]
+
+    def queryset(self, request, queryset):
+        try:
+            queryt = ServidorTenants.objects.all()
+            if self.value():
+                tenants = queryt.filter(tenant_id=self.value())
+                tenants_id = [t.servidor_id for t in tenants]
+                return queryset.filter(id__in=tenants_id)
+        except Exception as err:
+            print(f'ERROR FILTER TENANTS: {err}')
+        return queryset
+
+
+class OperatingSystemFilter(admin.SimpleListFilter):
+    title = _('SO')
+    parameter_name = 'so'
+
+    def lookups(self, request, model_admin):
+        operating_systems = OperatingSystem.objects.all()
+        return [(so.id, so.so) for so in operating_systems]
+
+    def queryset(self, request, queryset):
+        try:
+            queryop = ServidorOperatingSystem.objects.all()
+            if self.value():
+                server = queryop.filter(so_id=self.value())
+                servidor_ids = [s.servidor_id for s in server]
+                return queryset.filter(id__in=servidor_ids)
+        except Exception as err:
+            print(f'ERROR FILTER SO: {err}')
+        return queryset
 
 @admin.register(Servidor)
 class ServidorAdmin(admin.ModelAdmin):
     change_form_template = "infra/admin/change_form_servidor.html"
     delete_confirmation_template = "infra/admin/delete_confirmation_servidor.html"
     change_list_template  = "infra/admin/change_list_servidor.html"
-    search_fields = ["nome", "patrimonio", "marca", "modelo"]
-    list_filter = ["tipo_uso","tipo" ]
-    list_display = ("nome", "tipo", "tipo_uso",  "predio",  "descricao", "grupo", "status")
-    fields = ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", 'vm_remover']
+    search_fields = ["nome", "patrimonio", "marca", "modelo", "descricao", "servicos", "grupos"]
+    list_filter = [
+        "tipo_uso", 
+        "tipo", 
+        "datacenter",
+        TenantsFilter,
+        OperatingSystemFilter
+    ]
+    list_display = ("nome", "tipo", "tipo_uso",  "datacenter",  "descricao", "grupo", "responsavel", "status")
+    fields = ["nome", "tipo", "tipo_uso", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", 'vm_remover']
     readonly_fields = ("status","conta")
-    form = ServidorForm
-    inlines = [HostnameIPServidorInLine]
-
+    form = ServidorForm 
+    inlines = [HostnameIPServidorInLine,]
+    
+    #Listar os grupos um em cada linha
     def grupo(self, obj):
-        return obj.grupo_acesso_name()
+        grupos = obj.grupo_acesso_name().split(" | ")
+        if not grupos:
+            return "-"
+        
+        primeiro_grupo = grupos[0]
+        grupos_extras = grupos[1:]
+        
+        html = format_html('<div>{}</div>', primeiro_grupo)
+        for grupo in grupos_extras:
+            html += format_html('<div style="margin-top: 0px;">{}</div>', grupo)
+        
+        return html
     grupo.short_description = "Grupo"
+
+    # Coluna responsável
+    def responsavel(self, obj):
+        grupos_acesso = obj.grupos_acesso.all()
+        if not grupos_acesso.exists():
+            return "-"
+        
+        responsaveis_por_grupo = []
+        
+        for grupo_acesso in grupos_acesso:
+            # Acessa o GrupoTrabalho relacionado
+            grupo_trabalho = grupo_acesso.grupo_trabalho
+            
+            # Obtém todos os responsáveis desse grupo
+            responsaveis = grupo_trabalho.responsavel.all()
+            
+            if responsaveis.exists():
+                # Formata os nomes dos responsáveis
+                nomes = [f"{resp.first_name} {resp.last_name}" for resp in responsaveis]
+                responsaveis_por_grupo.append(
+                    f"{', '.join(nomes)}"
+                )
+            else:
+                responsaveis_por_grupo.append(
+                    f"{grupo_trabalho.grupo}: Sem responsável definido"
+                )
+        
+        return format_html("<br>".join(responsaveis_por_grupo))
+
+    responsavel.short_description = "Responsável"
+    responsavel.allow_tags = True
 
     def save_model(self, request, obj, form, change):
         hostname_str = obj.nome.split(" | ")
@@ -281,21 +390,21 @@ class ServidorAdmin(admin.ModelAdmin):
     def add_view(self, request, form_url="", extra_context=None):
         extra_context = dict( show_save=False, show_save_and_continue=True)
         self.readonly_fields = ("status","conta")
-        self.fields = ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta"]
+        self.fields = ["nome", "tipo", "tipo_uso", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", "servicos"]
         self.inlines = ()
         return super().add_view(request, form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         servidor = get_object_or_404(Servidor, id=object_id)
         if servidor.tipo == 'Servidor Virtual' and  servidor.vm_ambiente_virtual:
-            self.fields = ["nome", "tipo", "tipo_uso", "predio", "descricao", "status", "conta", "vm_remover"]
+            self.fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "status", "conta", "vm_remover", "servicos"]
         elif servidor.tipo == 'Servidor Virtual':
-            self.fields = ["nome", "tipo", "tipo_uso", "predio", "descricao", "status", "conta"]
+            self.fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "status", "conta", "servicos"]
         else:
-            self.fields = ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", ]
+            self.fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", "servicos"]
 
         self.readonly_fields = ("nome", "status", "conta", "tipo", "tipo_uso", "predio")
-        self.inlines = [HostnameIPServidorInLine, GrupoAcessoEquipamentoInLine, OcorrenciaInLine, ServicoNagiosInLine]
+        self.inlines = [HostnameIPServidorInLine, GrupoAcessoEquipamentoInLine, OcorrenciaInLine, ServicoNagiosInLine, TenantsInLine, OperatingSystemInLine,]
         return super().change_view(request, object_id, form_url=form_url, extra_context=extra_context)
 
     def save_formset(self, request, form, formset, change):
@@ -355,7 +464,7 @@ class TemplateVMAdmin(admin.ModelAdmin):
         return super().save_formset(request, form, formset, change)
 
     def delete_model(self, request, obj):
-        for template_hostnameip in TemplateHostnameIP.objects.filter(servidor__id=obj.pk):
+        for template_hostnameip in TemplateHostnameIP.objects.filter(id=obj.pk):
             hostnameip = template_hostnameip.hostnameip
             hostnameip.reservado = False
             hostnameip.save()
@@ -382,13 +491,14 @@ class EquipamentoParteAdmin(admin.ModelAdmin):
 @admin.register(AmbienteVirtual)
 class AmbienteVirtualAdmin(admin.ModelAdmin):
     search_fields = ["nome"]
-    list_display = ["nome", "virtualizador", "versao"]
-    fields = ["nome", "virtualizador", "versao"]
+    list_display = ["nome", "virtualizador", "versao", "status", "network"]
+    fields = ["nome", "virtualizador", "versao", "status", "network"]
     inlines = (AmbienteVirtualServidorInLine,)
 
 
 @admin.register(Rede)
 class RedeAdmin(admin.ModelAdmin):
+    search_fields = ["rede", "ip"]
     list_display = ("rede", "ip", "prioridade_montagem")
 
 

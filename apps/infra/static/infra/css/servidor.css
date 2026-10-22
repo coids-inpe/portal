@@ -23,3 +23,7 @@
 .column-nome {
     min-width: 100px;
 }
+
+.column-responsavel {
+    min-width: 120px;
+}

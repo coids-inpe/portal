@@ -1,8 +1,8 @@
 import datetime
-
+from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import Group
 from django.db import models
-from apps.core.managers import ColaboradorGrupoAcessoManager, DivisaoManager, GrupoAcessoManager, GrupoTrabalhoManager, ResponsavelGrupoTrabalhoManager
+from apps.core.managers import ColaboradorGrupoAcessoManager, DivisaoManager, GrupoAcessoManager, OperatingSystemManager, TenantsManager, GrupoTrabalhoManager, ResponsavelGrupoTrabalhoManager
 
 
 class Predio(models.Model):
@@ -145,6 +145,51 @@ class GrupoPortal(Group):
         proxy = True
         verbose_name = "Grupo no Portal"
         verbose_name_plural = "Grupos no Portal"
+
+
+class Tenants(models.Model):
+    tenants = models.CharField(verbose_name='Grupo de Rede', max_length=255)
+
+    objects = TenantsManager()
+
+    class Meta:
+        verbose_name = "Grupo de Rede"
+        verbose_name_plural = "Grupos de Redes"
+
+    def __str__(self):
+        return f"{self.tenants}"
+    
+class ServidorTenants(models.Model):
+    servidor = models.ForeignKey("infra.Servidor", on_delete=models.CASCADE)
+    tenant = models.ForeignKey("core.Tenants", on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('servidor', 'tenant')
+        verbose_name = "Grupo de Rede"
+        verbose_name_plural = "Grupos de Redes"
+
+    def __str__(self):
+        return f"{self.tenant.tenants}"
+    
+class OperatingSystem(models.Model):
+    so = models.CharField(verbose_name='Sistema operacional', max_length=255)
+    objects = OperatingSystemManager()
+
+    class Meta:
+        verbose_name = "Sistema operacional"
+        verbose_name_plural = "Sistemas operacionais"
+
+    def __str__(self):
+        return f"{self.so}"
+
+class ServidorOperatingSystem(models.Model):
+    servidor = models.ForeignKey("infra.Servidor", on_delete=models.CASCADE)
+    so = models.ForeignKey("core.OperatingSystem", on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('servidor', 'so')
+        verbose_name = "Servidor operacional"
+        verbose_name_plural = "Sistema operacional"
 
 
 class ResponsavelGrupoTrabalho(models.Model):

@@ -1,7 +1,7 @@
 {% load templatetags %}
 <div class="row p-0 pt-2 m-0">
     {% for rack in supercomputador.racks %}
-        <div class="col-3 p-1">
+        <div class="col-6 p-1">
             <div class="card shadow-menu border-0">
                 <div class="card-header p-0 text-center blue-grey darken-2 white-text rounded-0">
                     <h6 class="card-title p-1 m-0"><b>{{ supercomputador.modelo }} {{ rack }}</b></h6>
@@ -31,7 +31,7 @@
         </div>
     {% empty %}
         <div class="row">
-            <h1 class="display-4 text-danger p-5"> ERRO!!</h1>
+            <h1 class="display-8 text-danger p-5"> Falha: Gráfico <i>nodes</i>!!</h1>
         </div>
     {% endfor %}
 </div>

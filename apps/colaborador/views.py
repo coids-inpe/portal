@@ -9,7 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.staticfiles import finders
 from django.http import Http404, HttpResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.template.loader import get_template
 from django.urls import reverse_lazy
 from django.utils.encoding import force_bytes
@@ -17,14 +17,26 @@ from django.views.generic import DetailView
 from django.views.generic.base import RedirectView, TemplateView, View
 from django.views.generic.edit import CreateView, FormView, UpdateView
 from xhtml2pdf import pisa
-
 from apps.colaborador.forms import  ColaboradorExternoForm, ColaboradorForm, ResponsavelNegarForm, SecretariaNegarForm, SuporteForm
 from apps.colaborador.models import Colaborador, VPN
-from apps.colaborador.utils import HistoryColaborador, gerar_password, get_user
+from apps.colaborador.utils import HistoryColaborador, export_to_xlsx, export_to_pdf, gerar_password, get_user
 from apps.core.models import ColaboradorGrupoAcesso, Divisao, GrupoAcesso, GrupoTrabalho
 from apps.core.tasks import send_email_template_task
 from apps.core.utils.freeipa import FreeIPA
 from garb.views import ViewContextMixin
+
+class ColaboradorUpdateView(ViewContextMixin, LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    model = Colaborador
+    form_class = ColaboradorForm
+    template_name = "colaborador/form.html"
+    title = "Editar Colaborador"
+    permission_required = "colaborador.change_colaborador"
+    success_url = reverse_lazy("colaborador:secretaria")  
+
+    def form_valid(self, form):
+        colaborador = form.save()
+        messages.add_message(self.request, messages.SUCCESS, "Informações atualizadas com sucesso.")
+        return super().form_valid(form)
 
 
 class InicioView(ViewContextMixin, TemplateView):
@@ -369,3 +381,57 @@ class ColaboradorExternoView(ViewContextMixin, LoginRequiredMixin, PermissionReq
         send_email_template_task.delay(f"Instruções para preenchimento dos formulários","colaborador/email/colaborador_externo.html", [self.email], {})
         messages.add_message(self.request, messages.SUCCESS, "Email com instruções para preenchimento de abertura de conta foi enviado!!")
         return reverse_lazy("admin:colaborador_vpn_changelist")
+
+# Exportar colaboradores
+def export_colaboradores_to_excel(request):
+    queryset = Colaborador.objects.all()
+    return export_to_xlsx(
+        queryset,
+        fields={
+            "username": "Usuário",
+            "full_name": "Nome Completo",
+            "email": "E-mail",
+            "ramal": "Ramal",
+            "vinculo": "Vínculo",
+            "is_active": "Ativo"
+        },
+        title="Relatório de Colaboradores",
+        filename="colaboradores.xlsx"
+    )
+
+def export_colaboradores_to_pdf(request):
+    queryset = Colaborador.objects.all()
+    page_title = "Relatório de Colaboradores"
+    return export_to_pdf(
+        queryset=queryset,
+        fields={
+            "username": "Usuário",
+            "full_name": "Nome Completo",
+            "email": "Email",
+            "ramal": "Ramal",
+            "vinculo": "Vínculo"
+        },
+        filename="colaboradores__.pdf",
+        page_title=page_title
+    )
+
+
+# Exportar vpn
+def export_vpn_to_excel(request):
+    queryset = VPN.objects.all()
+    return export_to_xlsx(queryset, fields=["colaborador", "recurso", "status", "data_validade"], title="Relatório de VPNs", filename="vpn.xlsx")
+
+def export_vpn_to_pdf(request):
+    queryset = VPN.objects.all()
+    page_title = "Relatório de VPNs"
+    return export_to_pdf(queryset=queryset, fields=["colaborador", "recurso", "status"], filename="vpn__.pdf", page_title=page_title)
+
+# Exportar Divisões | Coordenações
+def export_divisao_to_excel(request):
+    queryset = Divisao.objects.all()
+    return export_to_xlsx(queryset, fields=["divisao", "email", "chefe", "chefe_ativo", "chefe_substituto", "chefe_substituto_ativo"], title="Relatório de Divisões e Coordenações", filename="divisao.xlsx")
+
+def export_divisao_to_pdf(request):
+    queryset = Divisao.objects.all()
+    page_title = "Relatório de Divisões | Coordenações"
+    return export_to_pdf(queryset=queryset, fields=["divisao", "email", "chefe", "chefe_substituto"], filename="divisao__.pdf", page_title=page_title)

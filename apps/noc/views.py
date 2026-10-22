@@ -18,5 +18,11 @@ class EnviarCheckListView(LoginRequiredMixin, PermissionRequiredMixin, RedirectV
         template_email = get_template('noc/email/checklist.html').render(context)
         emails = [checklist_email.email for checklist_email in ChecklistEmail.objects.all()]
         messages.add_message(self.request, messages.SUCCESS, "Checklist enviado!")
-        send_mail(f"checklist {checklist}", None, settings.EMAIL_HOST_USER, emails, html_message=template_email)
+        try:
+            send_mail(f"checklist {checklist}", None, settings.EMAIL_HOST_USER, emails, html_message=template_email)
+        except Exception as error:
+            print('#'*30)
+            print(error)
+
+
         return reverse_lazy("admin:noc_checklist_change", kwargs={"object_id": checklist.id, })

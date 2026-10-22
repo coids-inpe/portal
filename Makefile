@@ -60,7 +60,7 @@ install-prod:
 	@echo -e "\n\n#####################################################"
 	@echo "Adicione configurações em prod.env"
 	@echo "Adicione o arquivo .freeipa_chave.pem para acesso ao FreeIPA"
-	@echo "Adicione a variável no ambiente - django_settings_module=portal.settings.development
+	@echo "Adicione a variável no ambiente - django_settings_module=portal.settings.development"
 	@echo "#####################################################"
 
 
@@ -117,3 +117,4 @@ update-prod:
 	docker image rm docker images prod_portal_django-celery --format "{{.ID}}"
 	docker image rm docker images prod_portal_gunicorn --format "{{.ID}}"
 	docker-compose -f ./docker/docker-compose_production_update -p prod_portal --project-directory $(shell pwd) up -d
+

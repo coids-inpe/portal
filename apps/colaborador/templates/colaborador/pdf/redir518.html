@@ -1,12 +1,12 @@
 <img src="{{ logo }}" class="logo">
 <div class='wrapper'>
     <div class='header'>
-        <p>Termo de Compromisso-RE/DIR-518 </p>
+        <p>Termo de Compromisso-NSIC-01 </p>
     </div>
 </div>
 <h6>Colaborador</h6>
 <div class='informacoes_borda'>
-    Eu, <b>{{ colaborador.full_name }}</b>, abaixo assinado, declaro que li e entendi os termos do documento RE/DIR-518
+    Eu, <b>{{ colaborador.full_name }}</b>, abaixo assinado, declaro que li e entendi os termos do documento NSIC-01
     intitulado &quot;Normas de Uso Aceit&aacute;vel de Recursos Computacionais do INPE&quot; e estou ciente que a viola&ccedil;&atilde;o destas Normas
     me sujeita &agrave;s medidas disciplinares descritas neste documento, assim como aquelas previstas na legisla&ccedil;&atilde;o em vigor.
     <br><br>
@@ -20,7 +20,7 @@
 
 </div>
 
-<h6>Vinculo do Colaborador</h6>
+<h6>Vínculo do Colaborador</h6>
 <div class='informacoes_borda'>
     Vínculo do Colaborador: <b>{{ colaborador.vinculo }}</b>
 </div>
@@ -29,7 +29,7 @@
 <div class='informacoes_borda'>
     Motivo do Preenchimento: 
     {% if "@inpe.br" in colaborador.email %} 
-        <b>Atualização ou Nova de Conta para Acesso aos Recursos</b>
+        <b>Atualização ou Criação de Conta para Acesso aos Recursos</b>
     {% else %}
         <b>{% if not colaborador.externo %} Novo email / {%  endif %} Conta para Acesso aos Recursos</b>
     {% endif %}

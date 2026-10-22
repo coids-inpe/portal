@@ -122,6 +122,14 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 MEDIA_URL = "/media/"
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 GARB_CONFIG = {
     "PROJECT_NAME": "3SPortal",
@@ -147,7 +155,17 @@ GARB_CONFIG = {
                 {"model": "core.divisao"},
             ],
         },
-        {"label": "Administrador", "icon": "fa-user-cog", "sub_itens": [{"model": "core.grupotrabalho"}, {"model": "core.grupoacesso"}, {"model": "core.grupoportal"}]},
+        {
+            "label": "Administrador", 
+            "icon": "fa-user-cog", 
+            "sub_itens": [
+                {"model": "core.grupotrabalho"},
+                {"model": "core.grupoacesso"}, 
+                {"model": "core.grupoportal"},
+                {"model": "core.tenants"},
+                {"model": "core.operatingsystem"},
+            ]
+        },
         
         {
             "label": "Infraestrutura",
@@ -162,6 +180,7 @@ GARB_CONFIG = {
                 {"model": "infra.templatevm"},
                 {"model": "infra.rack"},
                 {"model": "infra.hostnameip"},
+                {"model": "infra.rede"},
             ],
         },
         {
@@ -223,7 +242,7 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_TIME_LIMIT = 5 * 60
-CELERY_TASK_SOFT_TIME_LIMIT =  5 * 60
+CELERY_TASK_SOFT_TIME_LIMIT =  10 * 60
 CELERY_RESULT_EXPIRES = 5 * 60
 CELERY_TIMEZONE = "UTC"
 CELERY_TRACK_STARTED = True
@@ -231,7 +250,7 @@ CELERY_ACKS_LATE = True
 
 #servers
 SERVERS_ROOT = env('SERVERS_ROOT')
-SERVERS_PASSWORD = env('SERVERS_PASSWORD')
+SERVERS_PASSWORD = os.environ['SERVERS_PASSWORD']
 
 # freeipa
 # REQUIRED:
@@ -239,6 +258,10 @@ IPA_AUTH_SERVER = env('IPA_AUTH_SERVER')
 IPA_AUTH_SERVER_REPLICA = env('IPA_AUTH_SERVER_REPLICA')
 IPA_AUTH_USER =  env('IPA_AUTH_USER')
 IPA_AUTH_PASSWORD = env('IPA_AUTH_PASSWORD')
+
+# wazuh
+WAZUH_SERVER = os.environ['WAZUH_SERVER']
+WAZUH_PASS = os.environ['WAZUH_PASS']
 
 # OPTIONAL:
 IPA_AUTH_SERVER_SSL_VERIFY = BASE_DIR + env('IPA_AUTH_FILE')
@@ -255,7 +278,8 @@ KAFKA_SERVER = env('KAFKA_SERVER')
 
 # XEN
 XEN_AUTH_USER = env('XEN_AUTH_USER') 
-XEN_AUTH_PASSWORD = env('XEN_AUTH_PASSWORD') 
+XEN_AUTH_PASSWORD = os.environ['XEN_AUTH_PASSWORD'] 
+XEN_AUTH_PASSWORD_DMZ = os.environ['XEN_AUTH_PASSWORD_DMZ'] 
 
 # MQTT
 MOSQUITTO_SERVER = env('MOSQUITTO_SERVER') 

@@ -11,8 +11,8 @@ XenAPI==2.14
 PyQRCode==1.2.1
 python-freeipa==1.0.5
 django-freeipa-auth-json==0.1.2.dev1
-celery==4.4.7
-django-celery-results==1.2.1
+celery>=5.0
+django-celery-results>=2.0
 matplotlib==3.5.1
 pypng==0.0.21
 django-environ==0.8.1
@@ -21,5 +21,6 @@ django-cleanup==6.0.0
 paho-mqtt==1.5.1
 wiki==0.8
 reportlab==3.6.1
-git+https://github.com/marcelogumercinocosta/django-garb.git
-
+openpyxl
+environs
+git+https://github.com/coids-infraweb/django-garb.git

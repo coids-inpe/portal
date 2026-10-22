@@ -95,3 +95,8 @@
     text-align:left;
     margin-bottom:0;
 }
+
+.col-6 {
+    flex: 0 0 75%;
+    max-width: 75%;
+}

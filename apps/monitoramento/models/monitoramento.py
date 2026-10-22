@@ -24,6 +24,7 @@ class Monitoramento(models.Model):
     prioridade = models.IntegerField("prioridade")
     target = models.CharField("target", max_length=10, choices=TARGETS)
     tipo = models.ForeignKey('monitoramento.TipoMonitoramento', on_delete=models.CASCADE)
+    logo = models.CharField("logo", max_length=50, default='default_logo.png' )
 
     class Meta:
         verbose_name = "Monitoramento"

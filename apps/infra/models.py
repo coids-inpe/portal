@@ -87,6 +87,11 @@ class Equipamento(models.Model):
         ("DOCUMENTO", "DOCUMENTO"),
     )
 
+    DATACENTER_CHOICES = [
+        ('SESUP', 'SESUP'),
+        ('COIDS', 'COIDS'),
+    ]
+
     marca = models.CharField("Marca", max_length=255, null=True)
     modelo = models.CharField("Modelo", max_length=255, null=True)
     serie = models.CharField("Serial", max_length=255, null=True)
@@ -100,7 +105,8 @@ class Equipamento(models.Model):
     consumo = models.CharField("Consumo nominal (Watts)", max_length=255, null=True)
     tipo = models.CharField(verbose_name="Tipo", max_length=255)
     tipo_uso = models.CharField(verbose_name="Tipo de Uso", choices=TIPOS_USO, max_length=255)
-    predio = models.ForeignKey("core.Predio", verbose_name="Prédio", null=True, on_delete=models.PROTECT)
+    predio = models.ForeignKey("core.Predio", verbose_name="Prédio", null=True, on_delete=models.PROTECT, related_name="equipamentos_datacenter")
+    datacenter = models.CharField("Datacenter", choices=DATACENTER_CHOICES, null=True, blank=True, max_length=255)
     grupos_acesso = models.ManyToManyField("core.GrupoAcesso", verbose_name="Grupos de Acesso", through="EquipamentoGrupoAcesso")
     grupos = models.CharField(verbose_name="grupos",  max_length=255, null=True, blank=False)
     objects = EquipamentoManager()
@@ -148,7 +154,7 @@ class Supercomputador(Equipamento):
         verbose_name_plural = "Supercomputador"
 
     def __str__(self):
-        return f"{self.marca} {self.modelo}"
+        return f"{self.modelo}"
 
     def add_rack(self, rack):
         self.racks.append(rack)
@@ -259,6 +265,10 @@ class Servidor(Equipamento):
     vm_remover = models.BooleanField("Remover VM", default=False, blank=True, null=True)
     vm_ambiente_virtual = models.ForeignKey("infra.AmbienteVirtual", related_name="vm_ambiente_virtual", blank=True, null=True, on_delete=models.PROTECT)
     nagios_servicos = models.ManyToManyField('monitoramento.NagiosServicos', blank=True,through="ServidorNagiosServico")
+    servicos = models.CharField('serviços', max_length=255, blank=True, null=True)
+    tenants = models.ManyToManyField("core.Tenants", blank=True)
+    so = models.ManyToManyField("core.OperatingSystem", blank=True)
+    
     objects = ServidorManager()
 
     class Meta:
@@ -280,10 +290,53 @@ class Servidor(Equipamento):
     @property
     def host_principal(self):
         if self.hostname_ip: 
-            host = self.hostname_ip.through.objects.filter(servidor__id=self.id).order_by('hostnameip__id')[0]
+            host = self.hostname_ip.through.objects.filter(servidor__id=self.id, hostnameip__ip__startswith='150.163.').order_by('hostnameip__id')[0]
             return host.hostnameip.hostname, host.hostnameip.ip
         return None
 
+    #adicionando metodos grupo e responsavel no modelo
+    @property
+    def grupo(self):
+        grupos = self.grupo_acesso_name().split(" | ")
+        if not grupos:
+            return "-"
+        
+        return "\n".join(grupos)
+    
+    @property
+    def responsavel(self):
+        grupos_acesso = self.grupos_acesso.all()
+        if not grupos_acesso.exists():
+            return "-"
+        
+        responsaveis = []
+        for grupo_acesso in grupos_acesso:
+            grupo_trabalho = grupo_acesso.grupo_trabalho
+            nomes = [f"{resp.first_name} {resp.last_name}" for resp in grupo_trabalho.responsavel.all()]
+            responsaveis.append(", ".join(nomes) if nomes else f"{grupo_trabalho.grupo}: Sem responsável")
+        
+        return "\n".join(responsaveis)
+    
+    @property
+    def responsavel_grupo(self):
+        grupos_acesso = self.grupos_acesso.all()
+        if not grupos_acesso.exists():
+            return "-"
+        
+        responsaveis = []
+        for grupo_acesso in grupos_acesso:
+            grupo_trabalho = grupo_acesso.grupo_trabalho
+            nomes = []
+            for resp in grupo_trabalho.responsavel.all():
+                primeiro_nome = resp.first_name.split()[0] if resp.first_name else ""
+                #sobrenome_inicial = f"{resp.last_name[0]}." if resp.last_name else ""
+                ultimo_sobrenome = resp.last_name.strip().split()[-1] if resp.last_name else ""
+                nome_abreviado = f"{primeiro_nome} {ultimo_sobrenome}".strip()
+                nomes.append(nome_abreviado)
+            
+            responsaveis.append(", ".join(nomes) if nomes else f"{grupo_trabalho.grupo}: Sem responsável")
+        
+        return "\n".join(responsaveis)
 
 class TemplateVM(models.Model):
     nome = models.CharField("nome", max_length=255, blank=True, null=True)
@@ -301,7 +354,9 @@ class TemplateVM(models.Model):
     @property
     def host_principal(self):
         if self.origens: 
-            host = self.origens.through.objects.filter(template__id=self.id).order_by('hostnameip__id')[0]
+            # Alteracao de correcao da ordenacao de ips realizada em 24/04/24 pela equipe WEB para criacao de VMs #
+
+            host = self.origens.through.objects.filter(template__id=self.id, hostnameip__ip__startswith='150.163.').order_by('hostnameip__id')[0]
             return host.hostnameip.hostname, host.hostnameip.ip
         return None
 
@@ -484,10 +539,24 @@ class Ocorrencia(models.Model):
 
 
 class AmbienteVirtual(models.Model):
+    STATUS_CHOICES = [
+        ('ON', 'Ativo'),
+        ('OFF', 'Inativo'),
+    ]
+    NETWORK_CHOICES = [
+        (1, 'INTERNA'),
+        (2, 'DMZ'),
+    ]
     nome = models.CharField("nome", max_length=255)
     virtualizador = models.CharField("virtualizador", max_length=255)
     versao = models.CharField("versao", max_length=255)
+    status = models.CharField("status", max_length=3, choices=STATUS_CHOICES, default='ON')
     servidor = models.ManyToManyField("infra.Servidor")
+    network = models.PositiveSmallIntegerField("Tipo de Rede", choices=NETWORK_CHOICES, default=1)
+
+    class Meta:
+        verbose_name = "Ambiente Virtual"
+        verbose_name_plural = "Ambientes Virtuais"
 
     def __str__(self):
         return f"{self.nome} ({self.virtualizador} { self.versao})"

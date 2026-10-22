@@ -67,7 +67,7 @@ class SupercomputadorHistorico:
         return self.down
 
     def get_used(self):
-        return self.running + self.allocated_interactive + self.waiting + self.service
+        return self.running + self.allocated_interactive + self.waiting
 
     def get_frees(self):
         return self.free + self.free_batch
@@ -90,8 +90,9 @@ class SupercomputadorHistorico:
 
     def get_alerta(self):
         comand_erro = self.jobs + self.service + self.free_batch + self.admindown + self.waiting + self.free + self.down + self.running + self.suspect + self.noexist + self.allocated_interactive
+        
         if (self.get_downs()) > 0 or (comand_erro == 0):
-            return ["lighten-3", "grey", "red"]
+            return ["darken-4", "", "red"]
         return ["darken-4", "", "brown"]
 
     def get_alerta_time(self):

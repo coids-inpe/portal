@@ -6,19 +6,37 @@
         <div class="main-column">
             <div class="main-column-item">
                 <br>
-                {% for ambiente in ambientes %}
+                <div class="col-12 p-2"><h4>Ambientes Ativos</h4></div>
+                {% for ambiente in ambientes_ativos %}
                 <div class="box-garb p-0 box-garb-hover">
                     <div class="panel panel-default ">
                         <div class="panel-heading" role="tab">
                             <h4 class="panel-title panel-title-xen m-0 ">
                                 <a role="button" class="d-block w-100 p-4" href="{% url 'monitoramento:vms_xen_pool' ambiente.id %}">
-                                    Ambiente Virtual: {{ ambiente }}
+                                    {{ ambiente }}
                                 </a>
                             </h4>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
+
+                <hr>
+                <div class="col-12 p-2"><h4>Ambientes Inativos</h4></div>
+                {% for ambiente in ambientes_inativos %}
+                <div class="box-garb p-0 box-garb-hover">
+                    <div class="panel panel-default ">
+                        <div class="panel-heading" role="tab">
+                            <h4 class="panel-title panel-title-xen m-0 ">
+                                <a role="button" class="d-block w-100 p-4 text-muted" href="{% url 'monitoramento:vms_xen_pool' ambiente.id %}">
+                                    {{ ambiente }}
+                                </a>
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
             </div>
         </div>
     </div>

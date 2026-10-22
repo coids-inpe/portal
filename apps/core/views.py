@@ -1,7 +1,8 @@
 import datetime
 from io import BytesIO
-from os import remove
-
+import os
+import subprocess
+from pathlib import Path
 import xhtml2pdf.pisa as pisa
 from django.conf import settings
 from django.contrib import messages
@@ -10,19 +11,22 @@ from django.contrib.staticfiles import finders
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import get_template
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils.encoding import force_text
 from django.views.generic.base import RedirectView, TemplateView, View
 
-from apps.core.models import GrupoTrabalho
+from apps.core.models import GrupoTrabalho, GrupoAcesso
 from apps.colaborador.models import Colaborador
 from apps.infra.models import Servidor
-from apps.core.tasks import send_email_task
+from apps.core.tasks import rodar_scripts_netapp, send_email_task
 from apps.core.utils.freeipa import FreeIPA
 from apps.core.utils.history import HistoryCore
 from apps.core.utils.updategrupo import UpdateGrupoAcesso, UpdateColaboradorGrupo, UpdateGrupoVerificaDisco
 from garb.views import ViewContextMixin
-
+from apps.colaborador.utils import export_to_pdf, export_to_xlsx
+from apps.core.utils.netapp_vols import comando_netapp
+from django.http import JsonResponse
+import time
 
 class AtualizarAssinaturaView(LoginRequiredMixin, PermissionRequiredMixin, View):
     template_name = "core/pdf/grupo.html"
@@ -57,11 +61,10 @@ class ConfirmarAssinaturaView(LoginRequiredMixin, PermissionRequiredMixin, Redir
         if responsaveis_grupotrabalho.count() > 0:
             grupo.save_confirm()
             messages.add_message(self.request, messages.SUCCESS, "Assinatura confirmada, FreeIPA já pode ser Atualizado")
-            HistoryCore(self.request).confirmar_assinatura(grupo=grupo)
+            # HistoryCore(self.request).confirmar_assinatura(grupo=grupo)
             return reverse_lazy("admin:core_grupotrabalho_change", kwargs={"object_id": grupo.id})
         messages.add_message(self.request, messages.WARNING, "Confirme as informações do Cadastro e/ou Responsáveis!")
         return reverse_lazy("admin:core_grupotrabalho_change", kwargs={"object_id": grupo.id})
-
 
 class CriarContaGrupoTrabalhoView(LoginRequiredMixin, PermissionRequiredMixin, RedirectView):
     permission_required = "core.change_grupotrabalho"
@@ -69,22 +72,43 @@ class CriarContaGrupoTrabalhoView(LoginRequiredMixin, PermissionRequiredMixin, R
     def get_redirect_url(self, *args, **kwargs):
         grupo_trabalho = get_object_or_404(GrupoTrabalho, id=kwargs["pk"])
         if grupo_trabalho.responsavelgrupotrabalho_set.all().exists() and grupo_trabalho.gid > 0 and grupo_trabalho.confirmacao == True and UpdateGrupoVerificaDisco().verifica_disco(grupo_trabalho=grupo_trabalho, request=self.request):
+
             client_feeipa = FreeIPA(self.request)
             if client_feeipa.group_find_count(cn=grupo_trabalho.grupo_sistema) == 0:
-                # Cria Conta de User Group
                 if client_feeipa.set_grupo(grupo_trabalho):
                     send_email_task.delay("Conta de Grupo Criada",f"A Conta para Grupo de trabalho: {grupo_trabalho.grupo} foi criada no FreeIPA, por:{self.request.user.username,}",[settings.EMAIL_SYSADMIN])
-                    # Atualiza Grupos de Acesso
                     history_core = HistoryCore(self.request)
                     history_core.update_grupo_acesso(grupo=grupo_trabalho, assunto="Nova conta de Grupo de Trabalho")
                     UpdateGrupoAcesso(client_feeipa=client_feeipa, history_core=history_core).update_acesso(grupo_trabalho)
                     UpdateColaboradorGrupo(client_feeipa=client_feeipa, history_core=history_core).update_user(grupo_trabalho)
-                    messages.add_message(self.request, messages.WARNING, "Os volumes do Storage devem ser criados comforme o cadastro!")
+                    messages.add_message(self.request, messages.WARNING, "Os volumes do Storage devem ser criados conforme o cadastro!")
             else:
                 messages.add_message(self.request, messages.ERROR, "O grupo já existe!")
         else:
             messages.add_message(self.request, messages.ERROR, "Confira o Cadastro, existe informação faltando ou não salva! ")
         return reverse_lazy("admin:core_grupotrabalho_change", kwargs={"object_id": grupo_trabalho.id})
+
+
+
+class CriarVolumeNetAppGrupoTrabalhoView(LoginRequiredMixin, PermissionRequiredMixin, RedirectView):
+    permission_required = "core.change_grupotrabalho"
+
+    def get_redirect_url(self, *args, **kwargs):
+        grupo_trabalho = get_object_or_404(GrupoTrabalho, id=kwargs["pk"])
+        divisao = grupo_trabalho.divisao
+        grupo = grupo_trabalho.grupo
+        produto = grupo_trabalho.grupo_sistema
+        
+        messages.success(self.request, "Criação da conta iniciada. Pode levar até 5 minutos.")
+        
+        comando_netapp(
+            divisao=divisao,
+            grupo=grupo,
+            produto=produto,            
+        )
+        rodar_scripts_netapp.delay()
+        
+        return reverse("admin:core_grupotrabalho_change", kwargs={"object_id": grupo_trabalho.id})
 
 
 class AtualizarContaGrupoTrabalhoView(LoginRequiredMixin, PermissionRequiredMixin, RedirectView):
@@ -125,3 +149,13 @@ class CoreStatusView(TemplateView):
         context["grupo"] = GrupoTrabalho.objects.values("grupo").filter(data_criado__isnull=False).count()
         context["servidor"] = Servidor.objects.values("nome").filter(status="Em uso").count()
         return context
+
+# Exportar grupos de acesso
+def export_grupoAcesso_to_excel(request):
+    queryset = GrupoAcesso.objects.all()
+    return export_to_xlsx(queryset, fields=["grupo_acesso", "grupo_trabalho", "hbac_freeipa", "tipo", "data"], title="Relatório de Grupos de Acesso", filename="grupoAcesso.xlsx")
+
+def export_grupoAcesso_to_pdf(request):
+    queryset = GrupoAcesso.objects.all()
+    page_title = "Relatório de Grupos de Acesso"
+    return export_to_pdf(queryset=queryset, fields=["grupo_acesso", "grupo_trabalho", "hbac_freeipa", "tipo"], filename="grupoAcesso__.pdf", page_title=page_title)

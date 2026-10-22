@@ -16,5 +16,5 @@ ENV LC_ALL pt_BR.UTF-8
 ENV LANG pt_BR.UTF-8
 ENV LANGUAGE pt_BR.UTF-8
 
-RUN pip install --upgrade pip
+#RUN pip install --upgrade pip
 RUN pip install -r /app/requirements.txt

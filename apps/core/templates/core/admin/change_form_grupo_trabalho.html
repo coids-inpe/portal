@@ -9,6 +9,9 @@
         {% else %}
             {% if original.gid > 0 %}
                 {% if  not original.data_criado %}
+                    <a href="{% url 'core:criar_volumes_netapp' object_id  %}" class=" btn btn-info btn-verify-form" >Criar Volume</a>
+                {% endif %}
+                {% if not original.data_criado %}
                     <a href="{% url 'core:criar_conta_grupo' object_id  %}" class=" btn btn-info btn-verify-form" >Criar Conta</a>
                 {% else %}
                     <a href="{% url 'core:atualizar_conta_grupo' object_id  %}" class=" btn btn-info btn-verify-form" >Atualizar Conta</a>

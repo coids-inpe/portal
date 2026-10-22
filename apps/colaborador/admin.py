@@ -7,6 +7,7 @@ from apps.colaborador.models import (Colaborador, VPN, Vinculo)
 from apps.core.admin import ColaboradorGrupoAcessoInLineRead, GroupInLine
 from apps.core.utils.freeipa import FreeIPA
 from datetime import datetime, timedelta
+
 @admin.register(Vinculo)
 class VinculoAdmin(admin.ModelAdmin):
     search_fields = ["vinculo"]
@@ -16,7 +17,7 @@ class ColaboradorAdmin(admin.ModelAdmin):
     change_form_template = "colaborador/admin/change_form_colaborador.html"
     change_list_template = "colaborador/admin/change_list_colaborador.html"
     list_display = ("username", "full_name", "email", "ramal", "vinculo", "is_active")
-    search_fields = ["username","first_name", "last_name", "email"]
+    search_fields = ["username","first_name", "last_name", "email", "ramal", "is_active"]
     list_filter = ["is_active"]
     inlines = [GroupInLine, ColaboradorGrupoAcessoInLineRead]
     form = ColaboradorBaseForm
@@ -53,7 +54,8 @@ class ColaboradorAdmin(admin.ModelAdmin):
                 ("Informações Portal", {"fields": ["username", "uid", "is_superuser", "is_staff", "is_active", "last_login", "date_joined"]}),
             ]
             self.inlines = [GroupInLine, ColaboradorGrupoAcessoInLineRead]
-            self.readonly_fields = ["username", "uid", "is_staff", "is_active", "last_login", "date_joined", "data_inicio", "registro_inpe", "data_fim", "vinculo"]
+#J18abr2023 self.readonly_fields = ["username", "uid", "is_staff", "is_active", "last_login", "date_joined", "data_inicio", "registro_inpe", "data_fim", "vinculo"]
+            self.readonly_fields = ["username", "uid", "is_staff", "is_active", "last_login", "date_joined", "data_inicio"]
         else:
             if request.user.has_perm("colaborador.secretaria_colaborador"):
                 self.fieldsets = [
@@ -61,7 +63,8 @@ class ColaboradorAdmin(admin.ModelAdmin):
                     ("Informações Pessoais", {"fields": ["first_name", "last_name", "email"]}),
                     ("Informações Profissionais", {"fields": ["vinculo", "predio", "divisao", "ramal", "responsavel", "registro_inpe", "empresa", "data_inicio", "data_fim", "externo"]}),
                 ]
-                self.readonly_fields = ["username", "uid", "is_staff", "is_active", "last_login", "date_joined", "data_inicio", "registro_inpe", "data_fim", "vinculo"]
+#J18abr2023 self.readonly_fields = ["username", "uid", "is_staff", "is_active", "last_login", "date_joined", "data_inicio", "registro_inpe", "data_fim", "vinculo"]
+                self.readonly_fields = ["username", "uid", "is_staff", "is_active", "last_login", "date_joined", "data_inicio"]
             else:
                 self.fieldsets = [
 #J                    ("Informações Pessoais", {"fields": ["first_name", "last_name", "data_nascimento", "email", "telefone",]}),
@@ -83,7 +86,9 @@ class ColaboradorAdmin(admin.ModelAdmin):
             "Servidor":["responsavel", "empresa", "data_fim", "externo"],
             "Bolsista":["empresa", "registro_inpe",],
             "Estagiário":["empresa", "registro_inpe",],
-            "Terceiro":["registro_inpe",]
+            "Terceiro":["registro_inpe",],
+            "Aluno":["empresa", "registro_inpe",],
+            "Visitante":["empresa", "registro_inpe",]
         }
         fields_exclude = fields_exclude_colaborador[colaborador.vinculo.vinculo]
         if colaborador.externo:

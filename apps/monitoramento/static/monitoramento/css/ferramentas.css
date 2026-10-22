@@ -1,0 +1,61 @@
+.tipos {
+    margin-top: 20px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    -webkit-box-shadow: 0 2px 0 rgba(90,97,105,0.11), 0 4px 8px rgba(90,97,105,0.12), 0 10px 10px rgba(90,97,105,0.06), 0 7px 10px rgba(90,97,105,0.1);
+    box-shadow: 0 2px 0 rgba(90,97,105,0.11), 0 4px 8px rgba(90,97,105,0.12), 0 10px 10px rgba(90,97,105,0.06), 0 7px 10px rgba(90,97,105,0.1);
+}
+
+.tipos h2 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.ferramentas {
+    padding-inline-start: 0;
+    margin-bottom: 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-gap: 10px;
+    list-style: none;
+}
+  
+.ferramentas li {
+    background-color: transparent;
+    padding: 10px;
+    text-align: center;
+}
+
+.ferramentas li:hover {
+    background-color: #E9E9E9;
+    border-radius: 5px;
+    color: #0068FF;
+    font-weight: bold;
+}
+
+.ferramentas li:hover span {
+    color: #0068FF;
+    font-weight: bold;
+}
+
+.ferramenta a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #222;
+    text-decoration: none;
+}
+
+.ferramenta img {
+    display: block;
+    max-width: 100%;
+    height: 70px;
+}
+
+.ferramenta span {
+    margin-top: 10px;
+    text-align: center;
+    font-weight: 600;
+}
