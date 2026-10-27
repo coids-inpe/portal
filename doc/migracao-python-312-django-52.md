@@ -2,6 +2,8 @@
 
 ## Estado verificado
 
+- O workflow `.github/workflows/test.yml` executa em push e pull request com Python 3.12. Ele instala dependências, faz `pip check`, `manage.py check`, verifica migrations, migra o SQLite de teste, abre a página de novo colaborador e roda os testes de core e Kafka já estabilizados. O job encerra após 20 minutos e as etapas mais demoradas têm limites próprios de 2 a 12 minutos. A suíte completa ainda não é bloqueante no CI devido às falhas registradas abaixo.
+
 - A imagem de desenvolvimento com Python 3.12 instalou as dependências de produção, teste e desenvolvimento.
 - `python manage.py check`: sem problemas (7 verificações silenciadas na configuração existente).
 - `python manage.py makemigrations --check --dry-run`: nenhuma alteração detectada.

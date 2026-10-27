@@ -1,0 +1,51 @@
+name: Testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: doc/requirements/*.txt
+      - name: Dependências do sistema
+        timeout-minutes: 5
+        run: sudo apt-get update && sudo apt-get install -y build-essential git pkg-config default-libmysqlclient-dev
+      - name: Dependências Python
+        timeout-minutes: 12
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r doc/requirements/requirements.txt -r doc/requirements/requirements-test.txt
+          python -m pip check
+      - name: Ambiente de teste
+        run: cp doc/environment/_test.env test.env
+      - name: Verificações Django
+        timeout-minutes: 5
+        env:
+          DJANGO_SETTINGS_MODULE: portal.settings.test
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --noinput
+      - name: Página de cadastro
+        timeout-minutes: 2
+        env:
+          DJANGO_SETTINGS_MODULE: portal.settings.test
+        run: |
+          python - <<'PY'
+          import django
+          django.setup()
+          from django.test import Client
+          response = Client(raise_request_exception=True).get('/colaborador/inicio/novo/?motivo=novo')
+          assert response.status_code == 200, response.status_code
+          PY
+      - name: Testes estáveis
+        timeout-minutes: 5
+        run: python -m pytest -q apps/core/tests/test_models.py apps/core/tests/test_forms.py apps/monitoramento/tests/test_kafka.py
