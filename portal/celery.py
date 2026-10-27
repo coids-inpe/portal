@@ -4,7 +4,7 @@ import os
 
 from celery import Celery
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.environ["django_settings_module"])
+os.environ["DJANGO_SETTINGS_MODULE"] = os.environ.get("DJANGO_SETTINGS_MODULE") or os.environ["django_settings_module"]
 app = Celery("portal")
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()

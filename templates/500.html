@@ -1,0 +1,10 @@
+{% extends "base_error.html" %}
+{% load i18n %}
+
+{% block title %}{% trans 'Server Error' %}{% endblock %}
+
+{% block error %}<span>5</span><span>0</span><span>0</span>{% endblock %}
+
+{% block message %}
+  Ocorreu um erro. Tente novamente em breve. Obrigado por sua paciência.
+{% endblock %}

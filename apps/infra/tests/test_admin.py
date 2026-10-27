@@ -2,6 +2,7 @@
 import datetime
 
 import pytest
+from django.conf import settings
 from django.forms import inlineformset_factory
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import AnonymousUser, Group, Permission, User
@@ -60,7 +61,7 @@ def test_hostname_ip_inline(admin_site, superuser) -> None:
 
     request = RequestFactory().get(reverse('admin:infra_servidor_change', args=(servidor.pk,)))
     request.user = superuser
-    model_admin = HostnameIPInLine(ServidorHostnameIP, admin_site)
+    model_admin = HostnameIPServidorInLine(ServidorHostnameIP, admin_site)
     assert model_admin.has_change_permission(request) == False
 
 
@@ -123,6 +124,7 @@ def test_servidor_admin_create(admin_site, superuser) -> None:
     assert HostnameIP.objects.get(pk=hostnameip.pk).reservado == True
 
 
+@pytest.mark.skipif(not settings.IPA_AUTH_SERVER, reason="requer servidor FreeIPA de teste")
 def test_servidor_admin(admin_site, superuser, grupo_trabalho) -> None:
     grupo_trabalho.gid = 9000
     grupo_trabalho.desenvolvimento = True
@@ -240,7 +242,7 @@ def test_servidor_admin(admin_site, superuser, grupo_trabalho) -> None:
 
     grupos_acesso = GrupoAcesso.objects.filter(grupo_trabalho__id=grupo_trabalho.pk)
     for grupoacesso  in grupos_acesso: 
-        assert freeipa.hbacrule_delete(grupoacesso.hbac_freeipa) 
+        assert freeipa.hbacrule_delete(grupoacesso.hbac_freeipa)
     assert freeipa.remove_grupo(grupo_trabalho) == True
     servidor_hostname_ip = ServidorHostnameIP.objects.all()
     assert len(servidor_hostname_ip) ==  2
@@ -269,6 +271,7 @@ def test_servidor_admin(admin_site, superuser, grupo_trabalho) -> None:
     assert HostnameIP.objects.get(pk=hostnameip.pk).reservado == False
     assert Servidor.objects.filter(pk=servidor.pk).exists() == False
 
+@pytest.mark.skipif(not settings.IPA_AUTH_SERVER, reason="requer servidor FreeIPA de teste")
 def test_servidor_admin_automount_error(admin_site, superuser, grupo_trabalho) -> None:
     grupo_trabalho.gid = 9000
     grupo_trabalho.desenvolvimento = True
@@ -301,4 +304,4 @@ def test_servidor_admin_automount_error(admin_site, superuser, grupo_trabalho) -
     assert freeipa.remove_grupo(grupo_trabalho) == True
     model_admin.delete_model(request=request, obj=servidor)
     for grupoacesso  in grupos_acesso: 
-        assert freeipa.hbacrule_delete(grupoacesso.hbac_freeipa) 
+        assert freeipa.hbacrule_delete(grupoacesso.hbac_freeipa)

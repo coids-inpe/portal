@@ -11,7 +11,7 @@ from apps.infra.models import Storage, StorageAreaGrupoTrabalho, StorageArea, Am
 from apps.core.models import Divisao, GrupoTrabalho
 from apps.monitoramento.models.storage import Area, StorageHistorico, QuotaUtilizada
 from apps.monitoramento.views.monitoramento import FerramentaView
-from apps.monitoramento.views.storage import NetappView, NetappLisView, XE6QuotaView, XE6QuotaListView, NetappModelView
+from apps.monitoramento.views.storage import NetappLisView, XE6QuotaView, XE6QuotaListView, NetappModelView
 from apps.monitoramento.views.vm import XenView, XenPoolView, XenPoolListView
 from apps.monitoramento.views.uso import SupercomputadorView, SupercomputadorNodesView, SupercomputadorHistView
 from django.conf import settings
@@ -24,11 +24,6 @@ pytestmark = pytest.mark.django_db
 def test_monitoramento_view():
     request = RequestFactory().get(reverse("monitoramento:ferramentas"))
     response = FerramentaView.as_view()(request)
-    assert response.status_code == 200
-
-def test_monitoramento_netapp_view():
-    request = RequestFactory().get(reverse("monitoramento:storage_netapp"))
-    response = NetappView.as_view()(request)
     assert response.status_code == 200
 
 def test_monitoramento_netapp_model_view():

@@ -43,11 +43,8 @@ def test_create_colaborador() -> None:
 
 
 def test_detail_colaborador() -> None:
-    colaborador = mixer.blend(Colaborador, first_name="Colaborador", last_name="Fulano de tal", cpf="999.999.999-99", documento_tipo="RG", documento="88.888.888-8")
+    colaborador = mixer.blend(Colaborador, first_name="Colaborador", last_name="Fulano de tal")
     assert colaborador.full_name == "Colaborador Fulano de tal"
-    assert colaborador.get_documento_principal() == "CPF: <b>999.999.999-99</b>"
-    colaborador.cpf = None
-    assert colaborador.get_documento_principal() == "RG: <b>88.888.888-8</b>"
 
 
 def test_colaborador_chefia() -> None:

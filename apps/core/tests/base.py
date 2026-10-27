@@ -14,19 +14,18 @@ def admin_site():
 
 def message_middleware(request):
     """Annotate a request object with a session"""
-    middleware = SessionMiddleware()
+    middleware = SessionMiddleware(lambda request: None)
     middleware.process_request(request)
     request.session.save()
     """Annotate a request object with a messages"""
-    middleware = MessageMiddleware()
+    middleware = MessageMiddleware(lambda request: None)
     middleware.process_request(request)
     request.session.save()
     return request
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def superuser() -> Colaborador:
+def superuser(db) -> Colaborador:
     superuser = mixer.blend(Colaborador, email="teste.super_user@inpe.br")
     superuser.is_staff = True
     superuser.is_active = True
@@ -38,8 +37,7 @@ def superuser() -> Colaborador:
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def colaborador() -> Colaborador:
+def colaborador(db) -> Colaborador:
     vinculo = mixer.blend(Vinculo, vinculo="Administrador")
     divisao = mixer.blend(Divisao)
     predio = mixer.blend(Predio)
@@ -61,8 +59,7 @@ def colaborador() -> Colaborador:
     return colaborador
 
 @pytest.fixture
-@pytest.mark.django_db
-def secretaria() -> Colaborador:
+def secretaria(db) -> Colaborador:
     grupo_portal = mixer.blend(GrupoPortal, name="Secretaria")
     grupo_portal.permissions.add(Permission.objects.get(codename="secretaria_colaborador",))
     grupo_portal.permissions.add(Permission.objects.get(codename="change_divisao"))
@@ -80,16 +77,14 @@ def secretaria() -> Colaborador:
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def grupo_trabalho() -> GrupoTrabalho:
+def grupo_trabalho(db) -> GrupoTrabalho:
     grupo_trabalho = mixer.blend(GrupoTrabalho, grupo="Grupo Trabalho teste", grupo_sistema="teste_grupo", data_criado=None, id=4)
     grupo_trabalho.save()
     return grupo_trabalho
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def colaborador_suporte() -> Colaborador:
+def colaborador_suporte(db) -> Colaborador:
     grupo_portal = mixer.blend(GrupoPortal, name="Suporte")
     grupo_portal.permissions.add(Permission.objects.get(codename="change_colaborador"))
     grupo_portal.permissions.add(Permission.objects.get(codename="suporte_colaborador"))
@@ -112,8 +107,7 @@ def colaborador_suporte() -> Colaborador:
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def responsavel_grupo() -> Colaborador:
+def responsavel_grupo(db) -> Colaborador:
     grupo_portal = mixer.blend(GrupoPortal, name="Responsavel")
     grupo_portal.permissions.add(Permission.objects.get(codename="responsavel_colaborador"))
     grupo_portal.save()
@@ -138,8 +132,7 @@ def responsavel_grupo() -> Colaborador:
     return responsavel
 
 @pytest.fixture
-@pytest.mark.django_db
-def chefia() -> Colaborador:
+def chefia(db) -> Colaborador:
     grupo_portal = mixer.blend(GrupoPortal, name="Chefia")
     grupo_portal.permissions.add(Permission.objects.get(codename="chefia_colaborador"))
     grupo_portal.save()

@@ -5,7 +5,7 @@ from builtins import range
 from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.utils.encoding import force_str, force_text
+from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 
 from apps.colaborador.models import Colaborador

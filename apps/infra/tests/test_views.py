@@ -29,16 +29,14 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def rack() -> Rack:
+def rack(db) -> Rack:
     predio = mixer.blend(Predio, linhas=40, colunas=40, sensores=16, predio_sistema="CPT")
     rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="BA", posicao_coluna_inicial=38, posicao_coluna_final=38, consumo=1000, kvm_posicao=10, predio=predio)
     rack.save()
     return rack
 
 @pytest.fixture
-@pytest.mark.django_db
-def responsavel() -> Colaborador:
+def responsavel(db) -> Colaborador:
     responsavel = mixer.blend(Colaborador, first_name="Responsavel", last_name="Fulano de tal", externo=False, email="teste.reponsavel@inpe.br")
     responsavel.username = None
     responsavel.clean()
@@ -60,7 +58,7 @@ def test_criar_servidor_error_view(superuser, grupo_trabalho, responsavel_grupo)
     servidor_host = mixer.blend(ServidorHostnameIP, servidor=servidor, hostnameip=hostnameip)
     servidor_host.save()
 
-    request = RequestFactory().get(reverse("infra:criar_servidor", kwargs={"pk": servidor.pk}))
+    request = RequestFactory().get(reverse("infra:criar_servidor_ldap", kwargs={"pk": servidor.pk}))
     request = message_middleware(request)
     request.user = superuser
     response = CriarServidorLdapView.as_view()(request, pk=servidor.pk)
@@ -94,7 +92,7 @@ def test_criar_servidor_view(superuser, grupo_trabalho, responsavel_grupo):
     servidor_host = mixer.blend(ServidorHostnameIP, servidor=servidor, hostnameip=hostnameip)
     servidor_host.save()
 
-    request = RequestFactory().get(reverse("infra:criar_servidor", kwargs={"pk": servidor.pk}))
+    request = RequestFactory().get(reverse("infra:criar_servidor_ldap", kwargs={"pk": servidor.pk}))
     request = message_middleware(request)
     request.user = superuser
 

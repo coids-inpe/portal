@@ -8,9 +8,8 @@ from django.contrib.auth.models import Permission
 
 pytestmark = pytest.mark.django_db
 
-@pytest.mark.django_db
 @pytest.fixture(autouse=True)
-def set_permission() -> None:
+def set_permission(db) -> None:
     group = mixer.blend(Group, name="Chefia")
     chefia_colaborador = Permission.objects.get(codename="chefia_colaborador")
     group.permissions.add(chefia_colaborador)
@@ -19,16 +18,14 @@ def set_permission() -> None:
     group.save()
 
 @pytest.fixture
-@pytest.mark.django_db
-def chefia_1() -> Colaborador:
+def chefia_1(db) -> Colaborador:
     chefia = mixer.blend(Colaborador, first_name="Chefe1", last_name="Divisao", email="chefe1.divisao@inpe.br")
     chefia.groups.add(Group.objects.get(name="Chefia"))
     chefia.save()
     return chefia
 
 @pytest.fixture
-@pytest.mark.django_db
-def chefia_2() -> Colaborador:
+def chefia_2(db) -> Colaborador:
     chefia = mixer.blend(Colaborador, first_name="Chefe2", last_name="Divisao", email="chefe2.divisao@inpe.br")
     chefia.groups.add(Group.objects.get(name="Chefia"))
     chefia.save()

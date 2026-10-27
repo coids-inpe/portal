@@ -5,7 +5,7 @@ import pandas as pd
 from django.core.exceptions import EmptyResultSet
 from django.shortcuts import get_object_or_404
 from django.views.generic.base import TemplateView
-from pykafka.exceptions import KafkaException, NoBrokersAvailableError
+from kafka.errors import KafkaError
 
 from apps.infra.models import Supercomputador
 from apps.monitoramento.models import (SupercomputadorHistorico,
@@ -46,7 +46,7 @@ class SupercomputadorNodesView(TemplateView):
                 supercomputador.add_rack(rack)
             context["supercomputador"] = supercomputador
             context["users"] = np.unique(np.array([x["usuario"] for x in nodes_bruto["nodes"]]))
-        except (RuntimeError, TypeError, NameError, IndexError, EmptyResultSet,  KafkaException, NoBrokersAvailableError):
+        except (RuntimeError, TypeError, NameError, IndexError, EmptyResultSet, KafkaError):
             context["supercomputador"] = None
             context["users"] = None
         return context
@@ -66,13 +66,12 @@ class SupercomputadorHistView(TemplateView):
             # 288 referente a 1 dia #
             # 2018 referente a 7 dias # 
             # 8640 referente a 30 dias #
-            kafka_client_historico.get_kafka_topic_last()
             nodes_bruto = kafka_client_historico.get_kafka_topic()
             context["grafico"] = self.get_grafico_historico(pd.DataFrame(nodes_bruto), days)
             context["numero"] = SupercomputadorHistorico(nodes_bruto[-1])
             context["supercomputador"] = supercomputador
             return context
-        except (RuntimeError, TypeError, NameError, IndexError, KeyError, KafkaException, NoBrokersAvailableError) as e:
+        except (RuntimeError, TypeError, NameError, IndexError, KeyError, KafkaError) as e:
             context["grafico"] = None
             context["numero"] = None
             context["supercomputador"] = None

@@ -8,9 +8,18 @@ from apps.colaborador.models import Colaborador
 from apps.core.models import (GrupoAcesso, GrupoTrabalho,
                               ResponsavelGrupoTrabalho)
 from apps.core.utils.freeipa import FreeIPA
+from python_freeipa import Client
 from apps.infra.models import Servidor
 
 pytestmark = pytest.mark.django_db
+
+def test_freeipa_uses_client_initialization(monkeypatch, settings):
+    settings.IPA_AUTH_SERVER = "ipa.example.test"
+    monkeypatch.setattr(Client, "login", lambda self, user, password: None)
+    client = FreeIPA()
+    assert client._host == "ipa.example.test"
+    assert client._dns_discovery is False
+    assert client._current_host is None
 
 def test_set_novasenha_error():
     colaborador = mixer.blend(Colaborador, username="teste.teste", email="teste.teste@inpe.br", uid="11")

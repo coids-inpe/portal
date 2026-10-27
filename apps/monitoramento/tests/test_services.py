@@ -1,4 +1,5 @@
 import datetime
+from types import SimpleNamespace
 
 import pytest
 from mixer.backend.django import mixer
@@ -6,7 +7,7 @@ from mixer.backend.django import mixer
 from xmlrpc.server import SimpleXMLRPCServer
 import xmlrpc.client
 from apps.monitoramento.utils import VDI, Vm, Host, Pool, XenInfo
-from apps.infra.models import AmbienteVirtual, Servidor
+from apps.infra.models import AmbienteVirtual, HostnameIP, Servidor, ServidorHostnameIP
 from django.conf import settings
 from XenAPI import Failure, Session
 
@@ -17,7 +18,7 @@ def test_vm() -> None:
     vdi = VDI(vdi_input,sr_input)
 
     vm_input = {"name_label":"server_name", "uuid":"asdf312dsfdfs", "name_description":"description" }
-    metrics_input = {"VCPUs_number": 4, "memory_actual": 64 * 1024 * 1024 }
+    metrics_input = {"VCPUs_number": 4, "memory_actual": 64 * 1024 * 1024, "start_time": xmlrpc.client.DateTime('20200306T19:32:29Z')}
     vm = Vm(vm_input, metrics_input)
     guest_metric_input = { 'os_version':{}, 'networks': {'0/ip': '', '0/ipv6/0': ''},'last_updated': xmlrpc.client.DateTime('20200306T19:32:29Z')}
     vm.set_guest_metric(guest_metric_input)
@@ -32,7 +33,7 @@ def test_vm() -> None:
     assert len(vm.vdis) == 1
 
 def test_host_pool() -> None:
-    object_host_input = {"hostname":"server_host", "uuid": "00000003-00000001", "address": '192.168.0.1', "bios_strings":{"system-manufacturer":'HP',"system-product-name":'ProLiant DL380p Gen8'},"software_version": {'product_version': '7.2.0'},"cpu_info":{ "cpu_count":64,"modelname": 'Intel(R) Xeon(R) CPU E5-2660 0 @ 2.20GHz'}}
+    object_host_input = {"hostname":"server_host", "uuid": "00000003-00000001", "address": '192.168.0.1', "bios_strings":{"system-manufacturer":'HP',"system-product-name":'ProLiant DL380p Gen8'},"software_version": {'product_version': '7.2.0'},"cpu_info":{ "cpu_count":64,"modelname": 'Intel(R) Xeon(R) CPU E5-2660 0 @ 2.20GHz'}, "other_config": {"boot_time": "1583523149"}}
     metrics_input =  {'last_updated': xmlrpc.client.DateTime('20200306T19:32:29Z'),"memory_total":f'{ 256 * 1024 * 1024 * 1024}', "memory_free":f'{ 128 * 1024 * 1024 * 1024}'}
     host = Host(object_host_input, metrics_input)
     cpus = ['OpaqueRef:fc75bc2f-5e87-0a14-afcf-6fd8ed7cd987', 'OpaqueRef:f5918a5e-7f10-3e58-d29f-0181926b1bf2', 'OpaqueRef:e28ba667-3526-beac-68cb-a962c46fd8d3', 'OpaqueRef:e1e664e5-22c6-dc12-1cc1-8470f6762ea0']
@@ -44,7 +45,7 @@ def test_host_pool() -> None:
     assert host.cpus == 4
 
     vm_input = {"name_label":"server_name", "uuid":"asdf312dsfdfs", "name_description":"description" }
-    metrics_input = {"VCPUs_number": 4, "memory_actual": 64 * 1024 * 1024 }
+    metrics_input = {"VCPUs_number": 4, "memory_actual": 64 * 1024 * 1024, "start_time": xmlrpc.client.DateTime('20200306T19:32:29Z')}
     vm = Vm(vm_input, metrics_input)
 
     host.add_vms(vm) 
@@ -58,22 +59,32 @@ def test_host_pool() -> None:
 
 
 @pytest.mark.django_db
-def test_xeninfo_error_not_master() -> None:
+def test_xeninfo_error_not_master(monkeypatch) -> None:
     ambiente_virtual = mixer.blend(AmbienteVirtual, nome='LAN', virtualizador='XEN', versao='7.0' )
     settings.XEN_AUTH_USER = 'root'
     settings.XEN_AUTH_PASSWORD = '123456'
-    servers = [mixer.blend(Servidor, nome='toropy'), mixer.blend(Servidor, nome='toropy')]
-    xen = XenInfo(ambiente_virtual, servers)
+    servidor = mixer.blend(Servidor, nome='toropy')
+    hostname = mixer.blend(HostnameIP, ip='192.0.2.1')
+    mixer.blend(ServidorHostnameIP, servidor=servidor, hostnameip=hostname)
+    xen = XenInfo(str(ambiente_virtual), [servidor.nome], ambiente_virtual)
+    def fail_login(user, password):
+        raise Failure(['HOST_IS_SLAVE', '192.0.2.2'])
+    monkeypatch.setattr('apps.monitoramento.utils.xen.Session', lambda url: SimpleNamespace(xenapi=SimpleNamespace(login_with_password=fail_login)))
     with pytest.raises(Failure) as excinfo:
         xen.login()
 
 
 @pytest.mark.django_db
-def test_xeninfo_error_not_servers() -> None:
+def test_xeninfo_error_not_servers(monkeypatch) -> None:
     ambiente_virtual = mixer.blend(AmbienteVirtual, nome='LAN', virtualizador='XEN', versao='7.0' )
     settings.XEN_AUTH_USER = 'root'
     settings.XEN_AUTH_PASSWORD = '123456'
-    servers = [mixer.blend(Servidor, nome='toropay'), mixer.blend(Servidor, nome='toroapy')]
-    xen = XenInfo(ambiente_virtual, servers)
+    servidor = mixer.blend(Servidor, nome='toropay')
+    hostname = mixer.blend(HostnameIP, ip='192.0.2.1')
+    mixer.blend(ServidorHostnameIP, servidor=servidor, hostnameip=hostname)
+    xen = XenInfo(str(ambiente_virtual), [servidor.nome], ambiente_virtual)
+    def fail_login(user, password):
+        raise OSError('connection refused')
+    monkeypatch.setattr('apps.monitoramento.utils.xen.Session', lambda url: SimpleNamespace(xenapi=SimpleNamespace(login_with_password=fail_login)))
     with pytest.raises(OSError) as excinfo:
         xen.login()

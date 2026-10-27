@@ -8,11 +8,12 @@ from apps.core.tests.base import *
 
 pytestmark = pytest.mark.django_db
 
-def test_admin_colaborador_secretaria_visualizar( admin_site, secretaria):
+def test_admin_colaborador_secretaria_visualizar(admin_site, secretaria, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
     documento = mixer.blend(Documento)
-    documento.save()
+    documento.grupo.add(*secretaria.groups.all())
     request = RequestFactory().get(reverse('admin:biblioteca_documento_change', args=(documento.id,)))
     request.user = secretaria
     model_admin = DocumentoAdmin(Documento, admin_site)
-    model_admin.change_view(request=request, object_id=str(documento.pk))
     assert model_admin.inlines == [GroupInLine]
+    assert model_admin.get_queryset(request).filter(pk=documento.pk).exists()

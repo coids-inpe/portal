@@ -1,6 +1,7 @@
 pi.PHONY: help
 SHELL := /bin/bash
 so := $(shell uname -s)
+VENV ?= .venv
 
 ifeq ($(so), Darwin)
 	export PATH := "/usr/local/opt/openssl/bin:$(PATH)"
@@ -36,11 +37,7 @@ install-test:
 
 # target: install-dev - Install VirtualEnv e Libs
 install-dev:
-	python3 -m venv ../env
-	../env/bin/pip install --upgrade pip
-	../env/bin/pip install -r ./doc/requirements/requirements.txt
-	../env/bin/pip install -r ./doc/requirements/requirements-dev.txt
-	../env/bin/pip install -r ./doc/requirements/requirements-test.txt
+	$(VENV)/bin/python -m pip install -r ./doc/requirements/requirements.txt -r ./doc/requirements/requirements-dev.txt -r ./doc/requirements/requirements-test.txt
 	rsync -auv ./doc/environment/_dev.env dev.env
 	
 	@echo -e "\n\n#####################################################"
@@ -87,7 +84,7 @@ start-prod:
 
 # target: test-dev - start test in dev
 test-dev:
-	../env/bin/pytest -v --cov=. --cov-report html
+	$(VENV)/bin/python -m pytest -v --cov=. --cov-report html
 
 # target: dumpdata - dump data for database
 dumpdata:

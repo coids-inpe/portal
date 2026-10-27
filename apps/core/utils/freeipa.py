@@ -1,22 +1,20 @@
 import random
 import string
 from builtins import range
-import requests
 from django.conf import settings
 from django.contrib import messages
 from python_freeipa import Client
 from django import http
-import logging
 
 
 class FreeIPA(Client):
     def __init__(self, request=None):
-        self._host = settings.IPA_AUTH_SERVER
-        self._base_url = "https://{0}/ipa".format(self._host)
-        self._verify_ssl = settings.IPA_AUTH_SERVER_SSL_VERIFY
-        self._version = settings.IPA_AUTH_SERVER_API_VERSION
-        self._session = requests.Session()
-        self._log = logging.getLogger(__name__)
+        super().__init__(
+            host=settings.IPA_AUTH_SERVER,
+            verify_ssl=settings.IPA_AUTH_SERVER_SSL_VERIFY,
+            version=settings.IPA_AUTH_SERVER_API_VERSION,
+            dns_discovery=False,
+        )
         self.login(settings.IPA_AUTH_USER, settings.IPA_AUTH_PASSWORD)
         self.request = request
 

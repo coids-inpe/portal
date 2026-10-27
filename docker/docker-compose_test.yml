@@ -1,6 +1,17 @@
 version: '3.3'
 
 services:
+  web:
+    build:
+      context: .
+      dockerfile: ./docker/django_dev_pesq/Dockerfile
+    environment:
+      django_settings_module: 'portal.settings.test'
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver --insecure 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
   redis:
     image: redis
     container_name: test_redis

@@ -9,6 +9,18 @@
 ## Sobre 
 3SPORTAL é um Portal de Gerenciamento e Automatização do Serviços de Supercomputação e Suporte.
 
+## Instalação local com pip
+
+Use a `.venv` existente. Para compilar `mysqlclient` em Debian/Ubuntu são necessários `build-essential`, `pkg-config`, `default-libmysqlclient-dev`, `git` e os headers da versão de Python usada pela venv (neste host, `python3.14-dev`). Na raiz do projeto:
+
+```bash
+source .venv/bin/activate
+python -m pip install -r doc/requirements/requirements.txt -r doc/requirements/requirements-dev.txt -r doc/requirements/requirements-test.txt
+python -m pip check
+```
+
+Também é possível executar `make install-dev`; esse alvo usa `.venv/bin/python`. A instalação das bibliotecas não exige Docker. Para executar Django e testes, ainda é necessário configurar as variáveis de ambiente descritas em `portal/settings/common.py`.
+
 ## Funcionalidades 
 <p align="center">
   <strong align="center">Cadastro de Colaboradores Integrado com LDAP - django, celery, django-garb, python_freeipa</strong>

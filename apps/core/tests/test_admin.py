@@ -2,6 +2,7 @@
 import datetime
 
 import pytest
+from django.conf import settings
 from django.test import RequestFactory
 from django.urls import reverse
 from mixer.backend.django import mixer
@@ -109,6 +110,7 @@ def test_grupotrabalho_create_delete_not_freeipa(admin_site, superuser, grupo_tr
     model_admin.delete_model(request=request, obj=grupo_trabalho)
     assert GrupoTrabalho.objects.filter(id=grupo_trabalho.pk).exists() == False
 
+@pytest.mark.skipif(not settings.IPA_AUTH_SERVER, reason="requer servidor FreeIPA de teste")
 def test_grupotrabalho_create_delete_freeipa(admin_site, superuser) -> None:
     grupo_trabalho = mixer.blend(GrupoTrabalho, grupo="Grupo teste", grupo_sistema="teste", data_criado=None, gid=10)
     grupo_trabalho.save()

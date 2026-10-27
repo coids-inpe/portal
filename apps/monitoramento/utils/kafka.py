@@ -1,36 +1,49 @@
-import itertools
 import json
-import math
+import time
 
 from django.conf import settings
-from pykafka import KafkaClient, exceptions
-from pykafka.common import OffsetType
+from kafka import KafkaConsumer, TopicPartition
+from kafka.errors import KafkaError
 
 
 class Kafka:
     def __init__(self, topic, last_lines):
+        self.topic = topic
         self.last_lines = last_lines
-        self.client = KafkaClient(hosts=settings.KAFKA_SERVER)
-        self.topic = self.client.topics[topic]
-        self.consumer = self.topic.get_simple_consumer(auto_offset_reset=OffsetType.LATEST, reset_offset_on_start=True, consumer_timeout_ms=2000)
-        
-    def get_kafka_topic(self):
-        result = []
-        LAST_N_MESSAGES = self.last_lines
-        MAX_PARTITION_REWIND = int(math.ceil(LAST_N_MESSAGES / len(self.consumer.partitions)))
-        held_offsets = self.consumer.held_offsets[0] - MAX_PARTITION_REWIND
-        offsets = [(self.consumer.partitions[0], (held_offsets if held_offsets > -1 else -2))]
-        self.consumer.reset_offsets(offsets)
-        for message in itertools.islice(self.consumer, LAST_N_MESSAGES):
-            result.append(json.loads((message.value).decode()))
-        return result
 
-    def get_kafka_topic_last(self):
-        LAST_N_MESSAGES = 1
-        MAX_PARTITION_REWIND = int(math.ceil(LAST_N_MESSAGES / len(self.consumer.partitions)))
-        held_offsets = self.consumer.held_offsets[0] - MAX_PARTITION_REWIND
-        offsets = [(self.consumer.partitions[0], (held_offsets if held_offsets > -1 else -2))]
-        self.consumer.reset_offsets(offsets)
-        for message in itertools.islice(self.consumer, LAST_N_MESSAGES):
-            result = message.offset
+    def get_kafka_topic(self):
+        if not settings.KAFKA_SERVER:
+            raise KafkaError("KAFKA_SERVER não configurado")
+
+        consumer = KafkaConsumer(
+            bootstrap_servers=settings.KAFKA_SERVER.split(","),
+            enable_auto_commit=False,
+        )
+        try:
+            partitions = consumer.partitions_for_topic(self.topic)
+            if not partitions:
+                return []
+
+            # O cliente anterior lia apenas a primeira partição do tópico.
+            partition = TopicPartition(self.topic, min(partitions))
+            earliest = consumer.beginning_offsets([partition])[partition]
+            latest = consumer.end_offsets([partition])[partition]
+            if earliest == latest:
+                return []
+
+            consumer.assign([partition])
+            consumer.seek(partition, max(earliest, latest - self.last_lines))
+            result = []
+            deadline = time.monotonic() + 2
+            while len(result) < self.last_lines and time.monotonic() < deadline:
+                records = consumer.poll(
+                    timeout_ms=max(1, int((deadline - time.monotonic()) * 1000)),
+                    max_records=self.last_lines - len(result),
+                )
+                if not records:
+                    break
+                result.extend(json.loads(message.value.decode()) for message in records.get(partition, []))
+            return result
+        finally:
+            consumer.close()
 

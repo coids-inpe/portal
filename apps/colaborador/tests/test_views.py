@@ -28,8 +28,7 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def colaborador_data() -> Colaborador:
+def colaborador_data(db) -> Colaborador:
     grupo_portal = mixer.blend(GrupoPortal, name="Responsavel")
     responsavel_colaborador = Permission.objects.get(codename="responsavel_colaborador")
     grupo_portal.permissions.add(responsavel_colaborador)
@@ -61,8 +60,7 @@ def colaborador_data() -> Colaborador:
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def colaborador_solicitacao() -> Colaborador:
+def colaborador_solicitacao(db) -> Colaborador:
     colaborador0 = mixer.blend(Colaborador, username="teste.solicitacao", email="teste.solicitacao@inpe.br", uid="12")
     colaborador0.save()
     colaborador = mixer.blend(Colaborador, first_name="Colaborador", last_name="Fulano de tal", externo=False, email="teste.pytest1@inpe.br")
@@ -73,8 +71,7 @@ def colaborador_solicitacao() -> Colaborador:
 
 
 @pytest.fixture
-@pytest.mark.django_db
-def grupo_acesso() -> GrupoAcesso:
+def grupo_acesso(db) -> GrupoAcesso:
     grupo_trabalho = mixer.blend(GrupoTrabalho, grupo="Grupo dados", grupo_sistema="dados")
     grupo_trabalho.save()
     grupo_acesso = GrupoAcesso()

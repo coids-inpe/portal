@@ -193,12 +193,13 @@ class GrupoTrabalhoAdmin(admin.ModelAdmin):
         return super(GrupoTrabalhoAdmin, self).change_view(request, object_id, form_url, extra_context)
 
     def delete_model(self, request, obj):
-        client_feeipa = FreeIPA(request)
-        if obj.data_criado and client_feeipa.group_find_count(cn=obj.grupo_sistema) == 1:
-            grupos_acesso = GrupoAcesso.objects.filter(grupo_trabalho__id=obj.id)
-            for grupo_acesso  in grupos_acesso:
-                client_feeipa.remove_hbac_group_rule(grupo_acesso)
-            client_feeipa.remove_grupo(obj)
+        if obj.data_criado:
+            client_feeipa = FreeIPA(request)
+            if client_feeipa.group_find_count(cn=obj.grupo_sistema) == 1:
+                grupos_acesso = GrupoAcesso.objects.filter(grupo_trabalho__id=obj.id)
+                for grupo_acesso in grupos_acesso:
+                    client_feeipa.remove_hbac_group_rule(grupo_acesso)
+                client_feeipa.remove_grupo(obj)
         super(GrupoTrabalhoAdmin, self).delete_model(request, obj)
 
     def add_view(self, request, form_url="", extra_context=None):

@@ -1,5 +1,5 @@
-pytest-django==4.5.2
-pytest-cov==3.0.0
-pytest-pythonpath==0.7.4
-mixer==7.2.2
+pytest>=8,<10
+pytest-django>=4.10,<5
+pytest-cov>=6,<8
+mixer>=7.2,<8
 

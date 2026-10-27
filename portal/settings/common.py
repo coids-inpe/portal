@@ -7,13 +7,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__ + "/../")))
 
 environment = {'portal.settings.development':"dev.env", 'portal.settings.test':"test.env", 'portal.settings.production':"prod.env" }
 env = environ.Env()
-env.read_env(os.path.join(BASE_DIR, environment[os.environ.get('django_settings_module')]))
+settings_module = os.environ.get('DJANGO_SETTINGS_MODULE') or os.environ.get('django_settings_module')
+env.read_env(os.path.join(BASE_DIR, environment[settings_module]))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY') 
+SECRET_KEY = env('SECRET_KEY')
 
 # Application definition
 
@@ -26,26 +27,37 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
-    
+
     "freeipa",
+
     "celery",
+
     "celery_progress",
+
     "django_cleanup.apps.CleanupConfig",
+
     "apps.core",
+
     "apps.colaborador",
+
     "apps.infra",
+
     "apps.monitoramento",
+
     "apps.biblioteca",
+
     'django.contrib.sites.apps.SitesConfig',
     'django_nyt.apps.DjangoNytConfig',
     'mptt',
     'sekizai',
     'sorl.thumbnail',
+
     'wiki.apps.WikiConfig',
     'wiki.plugins.attachments.apps.AttachmentsConfig',
     'wiki.plugins.images.apps.ImagesConfig',
     'wiki.plugins.help.apps.HelpConfig',
     'wiki.plugins.macros.apps.MacrosConfig',
+
     "apps.noc",
 ]
 
@@ -67,9 +79,9 @@ TEMPLATES = [
         "DIRS": ["templates"],
         "APP_DIRS": True,
         "OPTIONS": {"context_processors": [
-            "django.template.context_processors.debug", 
-            "django.template.context_processors.request", 
-            "django.contrib.auth.context_processors.auth", 
+            "django.template.context_processors.debug",
+            "django.template.context_processors.request",
+            "django.contrib.auth.context_processors.auth",
             "django.contrib.messages.context_processors.messages",
             'django.template.context_processors.media',
             'django.template.context_processors.i18n',
@@ -156,17 +168,17 @@ GARB_CONFIG = {
             ],
         },
         {
-            "label": "Administrador", 
-            "icon": "fa-user-cog", 
+            "label": "Administrador",
+            "icon": "fa-user-cog",
             "sub_itens": [
                 {"model": "core.grupotrabalho"},
-                {"model": "core.grupoacesso"}, 
+                {"model": "core.grupoacesso"},
                 {"model": "core.grupoportal"},
                 {"model": "core.tenants"},
                 {"model": "core.operatingsystem"},
             ]
         },
-        
+
         {
             "label": "Infraestrutura",
             "icon": "fa-building",
@@ -226,13 +238,13 @@ LOGOUT_REDIRECT_URL = '/'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True
 EMAIL_HOST = env('EMAIL_HOST')
-EMAIL_HOST_USER = env('EMAIL_HOST_USER') 
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD') 
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = 587
 ADMIN_EMAIL = env('EMAIL_HOST_USER')
 DEFAULT_FROM_EMAIL = ADMIN_EMAIL
 SERVER_EMAIL = ADMIN_EMAIL
-EMAIL_SUPORTE = env('EMAIL_SUPORTE') 
+EMAIL_SUPORTE = env('EMAIL_SUPORTE')
 EMAIL_SYSADMIN = env('EMAIL_SYSADMIN')
 
 #celery
@@ -246,7 +258,7 @@ CELERY_TASK_SOFT_TIME_LIMIT =  10 * 60
 CELERY_RESULT_EXPIRES = 5 * 60
 CELERY_TIMEZONE = "UTC"
 CELERY_TRACK_STARTED = True
-CELERY_ACKS_LATE = True 
+CELERY_ACKS_LATE = True
 
 #servers
 SERVERS_ROOT = env('SERVERS_ROOT')
@@ -274,16 +286,16 @@ IPA_AUTH_UPDATE_USER_GROUPS = False
 IPA_AUTH_FIELDS_MAP = {"password": "password"}
 
 # KAFKA
-KAFKA_SERVER = env('KAFKA_SERVER') 
+KAFKA_SERVER = env('KAFKA_SERVER')
 
 # XEN
-XEN_AUTH_USER = env('XEN_AUTH_USER') 
-XEN_AUTH_PASSWORD = os.environ['XEN_AUTH_PASSWORD'] 
-XEN_AUTH_PASSWORD_DMZ = os.environ['XEN_AUTH_PASSWORD_DMZ'] 
+XEN_AUTH_USER = env('XEN_AUTH_USER')
+XEN_AUTH_PASSWORD = os.environ['XEN_AUTH_PASSWORD']
+XEN_AUTH_PASSWORD_DMZ = os.environ['XEN_AUTH_PASSWORD_DMZ']
 
 # MQTT
-MOSQUITTO_SERVER = env('MOSQUITTO_SERVER') 
-MOSQUITTO_PORT = env('MOSQUITTO_PORT') 
+MOSQUITTO_SERVER = env('MOSQUITTO_SERVER')
+MOSQUITTO_PORT = env('MOSQUITTO_PORT')
 
 WIKI_ACCOUNT_HANDLING = False
 WIKI_ACCOUNT_SIGNUP_ALLOWED = False

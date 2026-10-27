@@ -12,7 +12,6 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import get_template
 from django.urls import reverse_lazy, reverse
-from django.utils.encoding import force_text
 from django.views.generic.base import RedirectView, TemplateView, View
 
 from apps.core.models import GrupoTrabalho, GrupoAcesso
