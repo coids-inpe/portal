@@ -9,11 +9,11 @@ from apps.core.utils.freeipa import FreeIPA
 from apps.infra.forms import (AmbienteVirtualServidorInLineForm,
                               EquipamentoGrupoAcessoForm, EquipamentoParteForm,
                               HostnameIPForm, HostnameIPInLineForm, OcorrenciaChecklistInLineForm,
-                              OcorrenciaInLineForm, RackForm, ServidorForm, ServidorOperatingSystemInLineForm, TemplateComandoInLineForm,
+                              OcorrenciaInLineForm, ServidorForm, ServidorOperatingSystemInLineForm, TemplateComandoInLineForm,
                               StorageAreaGrupoTrabalhoInLineForm, ServidorTenantsInLineForm)
 from apps.infra.models import (AmbienteVirtual, 
                                EquipamentoGrupoAcesso, EquipamentoParte,
-                               HostnameIP, Ocorrencia, Rack, Rede, Servidor,
+                               HostnameIP, Ocorrencia, Rede, Servidor,
                                ServidorHostnameIP, ServidorNagiosServico, Storage, StorageArea,
                                StorageAreaGrupoTrabalho, Supercomputador, TemplateComando, TemplateHostnameIP, TemplateVM)
 from apps.infra.utils.freeipa_location import Automount
@@ -117,43 +117,6 @@ class HostnameIPTemplateInLine(admin.TabularInline):
         return False
 
 
-class EquipamentoRackInLine(admin.TabularInline):
-    model = Servidor
-    fields = ("nome", "rack_tamanho", "rack_posicao")
-    ordering = ("-rack_posicao", "nome" )
-    readonly_fields = (
-        "nome",
-        "rack_tamanho",
-    )
-    extra = 0
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-
-class EquipamentoParteRackInLine(admin.TabularInline):
-    model = EquipamentoParte
-    fields = ("name_inline", "rack_tamanho", "rack_posicao")
-    readonly_fields = (
-        "name_inline",
-        "rack_tamanho",
-    )
-    extra = 0
-
-    def name_inline(self, obj):
-        return f"{obj.marca} {obj.modelo} - Patrimônio:{obj.patrimonio}"
-    name_inline.short_description = "Equipamento"
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-
 class AmbienteVirtualServidorInLine(admin.TabularInline):
     model = AmbienteVirtual.servidor.through
     fields = ("servidor",)
@@ -211,37 +174,11 @@ class HostnameIPAdmin(admin.ModelAdmin):
     form = HostnameIPForm
 
 
-@admin.register(Rack)
-class RackAdmin(admin.ModelAdmin):
-    change_form_template = "infra/admin/change_form_rack.html"
-    list_display = ("rack", "equipamentos", "predio", "consumo", "equipamentos_consumo", "pdu1", "pdu2")
-    list_filter = ["predio" ]
-    search_fields = ("rack",)
-    form = RackForm
-    inlines = (EquipamentoRackInLine, EquipamentoParteRackInLine)
-
-    def equipamentos(self, obj):
-        return int(obj.equipamento_set.count())
-    equipamentos.short_description = "Qtd. Equipamentos"
-
-    def equipamentos_consumo(self, obj):
-        return (obj.equipamento_set.aggregate(Sum("consumo"))['consumo__sum'])
-    equipamentos_consumo.short_description = "Consumo dos Equipamentos"
-
-    def add_view(self, request, form_url="", extra_context=None):
-        self.readonly_fields = []
-        return super().add_view(request, form_url=form_url, extra_context=extra_context)
-
-    def change_view(self, request, object_id, form_url="", extra_context=None):
-        self.readonly_fields = ["predio"]
-        return super().change_view(request, object_id, form_url=form_url, extra_context=extra_context)
-
-
 @admin.register(Supercomputador)
 class SupercomputadorAdmin(admin.ModelAdmin):
     search_fields = ["marca", "modelo"]
     list_display = ("marca", "modelo", "kafka_topico_realtime", "kafka_topico_historico",)
-    exclude = ("rack", "rack_tamanho", "rack_posicao", "consumo", "grupos_acesso", "patrimonio", "serie", "descricao", "tipo_uso", "tipo", "status", "grupos",)
+    exclude = ("consumo", "grupos_acesso", "patrimonio", "serie", "descricao", "tipo_uso", "tipo", "status", "grupos",)
     inlines = (OcorrenciaInLine,)
 
 
@@ -250,7 +187,7 @@ class StorageAdmin(admin.ModelAdmin):
     search_fields = ["marca", "modelo"]
     readonly_fields = ("atualizacao",)
     list_display = ("marca", "modelo", "descricao", "capacidade",)
-    exclude = ("rack", "rack_tamanho", "rack_posicao", "consumo", "grupos_acesso", "patrimonio", "serie",  "tipo_uso", "tipo", "status", "grupos",)
+    exclude = ("consumo", "grupos_acesso", "patrimonio", "serie",  "tipo_uso", "tipo", "status", "grupos",)
     inlines = (StorageAreaInLine, OcorrenciaInLine)
 
 class TenantsFilter(admin.SimpleListFilter):
@@ -306,7 +243,7 @@ class ServidorAdmin(admin.ModelAdmin):
         OperatingSystemFilter
     ]
     list_display = ("nome", "tipo", "tipo_uso",  "datacenter",  "descricao", "grupo", "responsavel", "status")
-    fields = ["nome", "tipo", "tipo_uso", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", 'vm_remover']
+    fields = ["nome", "tipo", "tipo_uso", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "vinculado", "status", "conta", 'vm_remover']
     readonly_fields = ("status","conta")
     form = ServidorForm 
     inlines = [HostnameIPServidorInLine,]
@@ -390,7 +327,7 @@ class ServidorAdmin(admin.ModelAdmin):
     def add_view(self, request, form_url="", extra_context=None):
         extra_context = dict( show_save=False, show_save_and_continue=True)
         self.readonly_fields = ("status","conta")
-        self.fields = ["nome", "tipo", "tipo_uso", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", "servicos"]
+        self.fields = ["nome", "tipo", "tipo_uso", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "vinculado", "status", "conta", "servicos"]
         self.inlines = ()
         return super().add_view(request, form_url=form_url, extra_context=extra_context)
 
@@ -401,7 +338,7 @@ class ServidorAdmin(admin.ModelAdmin):
         elif servidor.tipo == 'Servidor Virtual':
             self.fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "status", "conta", "servicos"]
         else:
-            self.fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta", "servicos"]
+            self.fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "vinculado", "status", "conta", "servicos"]
 
         self.readonly_fields = ("nome", "status", "conta", "tipo", "tipo_uso", "predio")
         self.inlines = [HostnameIPServidorInLine, GrupoAcessoEquipamentoInLine, OcorrenciaInLine, ServicoNagiosInLine, TenantsInLine, OperatingSystemInLine,]

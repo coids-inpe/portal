@@ -1,0 +1,47 @@
+{% for rack in racks %}
+<article
+  class="card netbox-rack-card"
+  aria-label="Rack {{ rack.name }}: {{ rack.occupied_units|default_if_none:'ocupação indisponível' }} de {{ rack.height }} U ocupadas"
+>
+  <div class="card-header blue darken-4 text-white">
+    <h2 class="h5 mb-0">{{ rack.name }}</h2>
+    <small
+      >{{ rack.site }}{% if rack.location != '—' %} / {{ rack.location }}{% endif %}</small
+    >
+  </div>
+  <div class="card-body">
+    <div class="netbox-rack" aria-hidden="true">
+      <div class="netbox-rack-labels"><span>U</span></div>
+      <div class="netbox-rack-units">
+        {% for slot in rack.slots %}
+        <div class="netbox-rack-unit">
+          <span class="netbox-unit-number">{{ slot.number }}</span>
+          <span
+            class="netbox-unit-face {{ slot.front }}"
+            title="U{{ slot.number }} frente: {{ slot.front }}"
+          ></span>
+        </div>
+        {% empty %}
+        <p class="text-muted text-center m-2">Elevação indisponível</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="netbox-rack-facts mt-3">
+      <div><span>Status</span><strong>{{ rack.status }}</strong></div>
+      <div><span>Grupo</span><strong>{{ rack.group }}</strong></div>
+      <div>
+        <span>Dispositivos</span><strong>{{ rack.device_count }}</strong>
+      </div>
+      <div>
+        <span>Ocupação frontal</span
+        ><strong
+          >{% if rack.occupancy_percent != None %}{{ rack.occupied_units }} / {{ rack.height }} U ({{ rack.occupancy_percent }}%){% else %}Indisponível{% endif %}</strong
+        >
+      </div>
+    </div>
+    {% if rack.description %}
+    <p class="text-muted small mt-2 mb-0">{{ rack.description }}</p>
+    {% endif %}
+  </div>
+</article>
+{% endfor %}

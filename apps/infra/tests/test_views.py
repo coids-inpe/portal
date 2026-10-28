@@ -16,24 +16,15 @@ from apps.core.utils.history import HistoryCore
 from apps.core.views import UpdateGrupoAcesso
 from apps.infra.models import ( Equipamento,
                                EquipamentoGrupoAcesso, EquipamentoParte,
-                               HostnameIP, Rack, Rede, Servidor,
+                               HostnameIP, Rede, Servidor,
                                ServidorHostnameIP,
                                StorageGrupoAcessoMontagem)
-from apps.infra.views import (CriarServidorLdapView, DataCenterJSONView,
-                              DataCenterMapView, DataCenterRackDetailView, DataCenterMapEditView,
-                              DataCenterView, RackDetailView, RackQRCodeView, DataCenterPredioView,
-                              RackServerDetailView, OcorrenciaNewView)
+from apps.infra.views import CriarServidorLdapView
 from apps.core.tests.base import *
 
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture
-def rack(db) -> Rack:
-    predio = mixer.blend(Predio, linhas=40, colunas=40, sensores=16, predio_sistema="CPT")
-    rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="BA", posicao_coluna_inicial=38, posicao_coluna_final=38, consumo=1000, kvm_posicao=10, predio=predio)
-    rack.save()
-    return rack
 
 @pytest.fixture
 def responsavel(db) -> Colaborador:
@@ -132,84 +123,22 @@ def test_criar_servidor_view(superuser, grupo_trabalho, responsavel_grupo):
     assert HostnameIP.objects.get(pk=hostnameip.pk).reservado == False
 
 
-def test_data_center_view(rack):
-    request = RequestFactory().get(reverse("infra:datacenter"))
-    response = DataCenterView.as_view()(request)
-    assert response.status_code == 200
-
-def test_data_center_predio_view(rack):
-    servidor = mixer.blend(Servidor, name='server1', rack=rack)
-    servidor.save()
-    request = RequestFactory().get(reverse("infra:datacenter_predio", kwargs={"pk": rack.predio.pk}))
-    response = DataCenterPredioView.as_view()(request, pk=rack.predio.pk)
-    assert response.status_code == 200
 
 
-def test_data_center_map_edit_view(rack):
-    request = RequestFactory().get(reverse("infra:datacenter_map_edit", kwargs={"pk": rack.pk}))
-    response = DataCenterMapEditView.as_view()(request, pk=rack.pk)
-    assert response.status_code == 200
 
 
-def test_data_center_map_insert_view():
-    predio = mixer.blend(Predio, linhas=40, colunas=40, areas='(2,4,2,4)')
-    request = RequestFactory().get(reverse("infra:datacenter_map", kwargs={"pk": predio.pk}))
-    response = DataCenterMapView.as_view()(request, pk=predio.pk)
-    assert response.status_code == 200
 
 
-def test_datacenter_search(rack):
-    servidor = mixer.blend(Servidor, nome='server1', rack=rack)
-    servidor.save()
-    request = RequestFactory().get(reverse("infra:datacenter_search"))
-    request.GET._mutable = True
-    request.GET['search']='server3'
-    response_None = DataCenterJSONView.as_view()(request)
-    assert response_None.status_code == 200
-    assert response_None.content == b'[]'
-    request.GET['search']='server1'
-    response_OK = DataCenterJSONView.as_view()(request)
-    assert response_OK.content == b'["div[data-element=\\"#rack_1\\"]"]'
-    assert response_OK.status_code == 200
 
 
-def test_rack_qrcode_view(rack):
-    request = RequestFactory().get(reverse("infra:rack_qrcode", kwargs={"pk": rack.pk}))
-    response = RackQRCodeView.as_view()(request, pk=rack.pk)
-    assert response.status_code == 200
 
 
-def test_rack_qrcode_detail_view(rack):
-    request = RequestFactory().get(reverse("infra:rack_detail", kwargs={"pk": rack.pk}))
-    response = RackDetailView.as_view()(request, pk=rack.pk)
-    assert response.status_code == 200
 
 
-def test_rack_server_detail_view():
-    servidor = mixer.blend(Servidor)
-    request = RequestFactory().get(reverse("infra:rack_server_detail", kwargs={"pk": servidor.pk}))
-    response = RackServerDetailView.as_view()(request, pk=servidor.pk)
-    assert response.status_code == 200
 
 
-def test_ocorrencia_new_view(rack):
-    equipamento = mixer.blend(Equipamento, rack=rack)
-    equipamento.save()
-    data = {"equipamento": equipamento.id, "descricao": "Teste de ocorrencia"}
-    request = RequestFactory().post(reverse("infra:ocorrencia_criar"), data=data)
-    response = OcorrenciaNewView.as_view()(request, data=data)
-    assert response.status_code == 302
 
 
-def test_rack_detail_view(rack):
-    equipamento_parte = mixer.blend(EquipamentoParte, marca='HP', modelo='GEN 10', patrimonio="10",  consumo=10)
-    equipamento_parte.rack = rack
-    equipamento_parte.save()
-    request = RequestFactory().get(reverse("infra:datacenter_rack_detail"))
-    request.GET._mutable = True
-    request.GET['pk']=rack.pk
-    request.GET['search']='GEN'
-    response = DataCenterRackDetailView.as_view()(request)
-    assert response.status_code == 200
+
 
 

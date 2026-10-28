@@ -9,22 +9,16 @@
                 $(".field-serie").show();
                 $(".field-patrimonio").show();
                 $(".field-garantia").show();
-                $(".field-rack").show();
-                $(".field-rack_tamanho").show();
                 $(".field-vinculado").show();
                 $(".field-consumo").show();
-                $(".field-rack_tamanho").show();
             } else {
                 $(".field-marca").hide();
                 $(".field-modelo").hide();
                 $(".field-serie").hide();
                 $(".field-patrimonio").hide();
                 $(".field-garantia").hide();
-                $(".field-rack").hide();
-                $(".field-rack_tamanho").show();
                 $(".field-vinculado").hide();
                 $(".field-consumo").hide();
-                $(".field-rack_tamanho").hide();
             }
         }
     }

@@ -17,16 +17,14 @@ from apps.core.models import ( GrupoAcesso, Predio)
 from apps.core.utils.freeipa import FreeIPA
 from apps.core.utils.history import HistoryCore
 from apps.core.views import UpdateGrupoAcesso
-from apps.infra.admin import (EquipamentoParteRackInLine,
-                              EquipamentoRackInLine,
-                              GrupoAcessoEquipamentoInLine,
+from apps.infra.admin import (GrupoAcessoEquipamentoInLine,
                               GrupoAcessoEquipamentoInLineRead,
-                              HostnameIPServidorInLine, HostnameIPServidorInLine, OcorrenciaInLine, RackAdmin,
+                              HostnameIPServidorInLine, HostnameIPServidorInLine, OcorrenciaInLine,
                               ServidorAdmin)
 from apps.infra.forms import EquipamentoGrupoAcessoForm, ServidorForm, HostnameIPInLineForm
 from apps.infra.models import ( Equipamento,
                                EquipamentoGrupoAcesso, EquipamentoParte,
-                               HostnameIP, Ocorrencia, Rack, Rede, Servidor,
+                               HostnameIP, Ocorrencia, Rede, Servidor,
                                ServidorHostnameIP, StorageGrupoAcessoMontagem,)
 from apps.infra.utils.freeipa_location import Automount
 from apps.core.tests.base import *
@@ -47,14 +45,6 @@ def test_grupoacesso_grupotrabalho_inline(admin_site, superuser) -> None:
     assert model_admin.equipamento_descricao(equipamento_grupo_acesso) == equipamento.descricao
     assert model_admin.equipamento_tipo(equipamento_grupo_acesso) == equipamento.tipo 
 
-def test_equipamento_rack_inline(admin_site, superuser) -> None:
-    rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="BA", posicao_coluna_inicial=38, posicao_coluna_final=38, consumo=1000)
-
-    request = RequestFactory().get(reverse('admin:infra_rack_change', args=(rack.id,)))
-    request.user = superuser
-    model_admin = EquipamentoRackInLine(Servidor, admin_site)
-    assert model_admin.has_delete_permission(request) == False
-    assert model_admin.has_add_permission(request) == False
 
 def test_hostname_ip_inline(admin_site, superuser) -> None:
     servidor = mixer.blend(Servidor)
@@ -76,36 +66,8 @@ def test_ocorrencia_inline(admin_site, superuser) -> None:
     assert model_admin.get_readonly_fields(ocorrencia) == ["data"]
 
 
-def test_equipamento_parte_rack_inLine(admin_site, superuser) -> None:
-    rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="BA", posicao_coluna_inicial=38, posicao_coluna_final=38, consumo=1000)
-    equipamento_parte = mixer.blend(EquipamentoParte, marca='HP', modelo='GEN 10', rack=rack, patrimonio=123 )
-
-    request = RequestFactory().get(reverse('admin:infra_rack_change', args=(rack.id,)))
-    request.user = superuser
-    model_admin = EquipamentoParteRackInLine(EquipamentoParte, admin_site)
-    assert model_admin.has_delete_permission(request) == False
-    assert model_admin.has_add_permission(request) == False
-    assert model_admin.name_inline(equipamento_parte) == "HP GEN 10 - Patrimônio:123" 
 
 
-def test_rack_admin(admin_site, superuser) -> None:
-    rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="BA", posicao_coluna_inicial=38, posicao_coluna_final=38, consumo=1000)
-    model_admin = RackAdmin(Rack, admin_site)
-    assert model_admin.equipamentos(rack) == 0
-    assert model_admin.equipamentos_consumo(rack) == None
-    equipamento_parte = mixer.blend(EquipamentoParte, marca='HP', modelo='GEN 10', rack=rack, patrimonio=123, consumo=1000)
-    assert model_admin.equipamentos(rack) == 1
-    assert model_admin.equipamentos_consumo(rack) == 1000
-
-    request = RequestFactory().get(reverse('admin:infra_rack_change', args=(rack.id,)))
-    request.user = superuser
-    model_admin = RackAdmin(Rack, admin_site)
-
-    model_admin.add_view(request=request)
-    assert model_admin.readonly_fields ==  []
-
-    model_admin.change_view(request=request, object_id=str(rack.id))
-    assert model_admin.readonly_fields ==  ["predio"]
 
 
 def test_servidor_admin_create(admin_site, superuser) -> None:
@@ -162,12 +124,12 @@ def test_servidor_admin(admin_site, superuser, grupo_trabalho) -> None:
     model_admin.add_view(request=request)
     assert model_admin.inlines == ()
     assert model_admin.readonly_fields == ("status","conta") 
-    assert model_admin.fields == ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta"]
+    assert model_admin.fields == ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "vinculado", "status", "conta"]
 
     model_admin.change_view(request=request, object_id=str(servidor.pk))
     assert model_admin.inlines == (HostnameIPServidorInLine, GrupoAcessoEquipamentoInLine, OcorrenciaInLine) 
     assert model_admin.readonly_fields == ("nome", "status", "conta", "tipo", "tipo_uso", "predio")
-    assert model_admin.fields == ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "conta"]
+    assert model_admin.fields == ["nome", "tipo", "tipo_uso", "predio", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "vinculado", "status", "conta"]
     servidor.tipo = "Servidor Virtual"
     servidor.save()
     model_admin.change_view(request=request, object_id=str(servidor.pk))

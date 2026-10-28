@@ -1,82 +1,8 @@
 from datetime import datetime, timedelta
 from django.core.exceptions import NON_FIELD_ERRORS, EmptyResultSet, ObjectDoesNotExist
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import Truncator
 from apps.infra.managers import EquipamentoGrupoAcessoManager, EquipamentoManager, EquipamentoParteManager, HostnameIPManager, OcorrenciaServicoManager, ServidorManager, ServidorNagiosServicoManager, StorageAreaGrupoTrabalhoManager, StorageAreaManager, StorageManager, SupercomputadorManager
-
-LINHAS = [ "-", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ", "AK", "AL", "AM", 
-            "AN", "AO", "AP", "AQ", "AR", "AS", "AT", "AU", "AV", "AW", "AX", "AY", "AZ", "BA", 
-            "BB", "BC", "BD", "BE", "BF", "BG", "BH", "BI", "BJ", "BK", "BL", "BM", "BN", "BO", 
-            "BP", "BQ", "BR", "BS"]
-
-
-class Rack(models.Model):
-    rack = models.CharField("Rack", max_length=255)
-    marca = models.CharField("Marca", max_length=255)
-    modelo = models.CharField("Modelo", max_length=255)
-    serie = models.CharField("Serial", max_length=255)
-    patrimonio = models.CharField("Patrimônio", max_length=255)
-    posicao_linha_inicial = models.CharField("Linha Inicial", max_length=2, null=True)
-    posicao_linha_final = models.CharField("Linha Final", max_length=2, null=True)
-    posicao_coluna_inicial = models.PositiveIntegerField("Coluna Inicial", validators=[MinValueValidator(1), MaxValueValidator(64)], null=True)
-    posicao_coluna_final = models.PositiveIntegerField("Coluna Final", validators=[MinValueValidator(1), MaxValueValidator(64)], null=True)
-    pdu1 = models.CharField("Primeiro PDU", max_length=255, blank=True, null=True)
-    pdu2 = models.CharField("Segundo PDU", max_length=255, blank=True, null=True)
-    consumo = models.IntegerField("Consumo Limite")
-    tamanho = models.IntegerField("Tamanho (U)", default=44)
-    kvm_posicao = models.IntegerField(verbose_name="Posição do KVM", blank=True, null=True)
-    predio = models.ForeignKey("core.Predio", verbose_name="Prédio", null=True, on_delete=models.PROTECT)
-    posicoes = None
-    equipamentos = None
-    comsumo_servidores = 0
-
-    class Meta:
-        ordering = ["predio", "posicao_linha_inicial", "posicao_coluna_inicial"]
-    
-    def __str__(self):
-        return self.rack
-
-    def linha_inicial(self):
-        return min(LINHAS.index(self.posicao_linha_inicial), LINHAS.index(self.posicao_linha_final))
-
-    def linha_final(self):
-        return max(LINHAS.index(self.posicao_linha_inicial), LINHAS.index(self.posicao_linha_final))
-
-    def coluna_inicial(self):
-        return min(self.posicao_coluna_inicial, self.posicao_coluna_final)
-
-    def coluna_final(self):
-        return max(self.posicao_coluna_inicial, self.posicao_coluna_final)
-
-    def posicao_linha_inicial_numero(self):
-        return LINHAS.index(self.posicao_linha_inicial)
-
-    def coluna_nome(self):
-        if LINHAS.index(self.posicao_linha_inicial) != LINHAS.index(self.posicao_linha_final) and self.posicao_coluna_inicial != self.posicao_coluna_final:
-            return self.posicao_coluna_inicial
-        elif LINHAS.index(self.posicao_linha_inicial) == LINHAS.index(self.posicao_linha_final) and self.posicao_coluna_inicial < self.posicao_coluna_final:
-            return self.posicao_coluna_inicial + 1
-        elif LINHAS.index(self.posicao_linha_inicial) == LINHAS.index(self.posicao_linha_final) and self.posicao_coluna_inicial > self.posicao_coluna_final:
-            return self.posicao_coluna_inicial - 1
-        else:
-            return self.posicao_coluna_inicial
-
-    def linha_nome(self):
-        if LINHAS.index(self.posicao_linha_inicial) == LINHAS.index(self.posicao_linha_final):
-            return LINHAS.index(self.posicao_linha_inicial)
-        elif LINHAS.index(self.posicao_linha_inicial) > LINHAS.index(self.posicao_linha_final):
-            return LINHAS.index(self.posicao_linha_inicial) - 1
-        else:
-            return LINHAS.index(self.posicao_linha_inicial) + 1
-
-    def disponivel(self):
-        return int(self.consumo) - int(self.comsumo_servidores)
-
-    def save(self, *args, **kwargs):
-        self.rack = f"{self.predio.predio_sistema}{self.posicao_linha_inicial}{self.posicao_coluna_inicial}"
-        super(Rack, self).save(*args, **kwargs)
-
 
 class Equipamento(models.Model):
     TIPOS_USO = (
@@ -99,9 +25,6 @@ class Equipamento(models.Model):
     descricao = models.CharField("Descrição", max_length=255, null=True)
     garantia = models.CharField("Garantia", max_length=255, null=True, blank=True)
     status = models.CharField("Status", default="Manutenção", max_length=255, null=True)
-    rack = models.ForeignKey(Rack, verbose_name="Rack", on_delete=models.PROTECT, null=True, blank=False)
-    rack_tamanho = models.IntegerField(default=2, verbose_name="Tamanho em U", null=True)
-    rack_posicao = models.IntegerField(default=0, verbose_name="Posição no Rack", null=True)
     consumo = models.CharField("Consumo nominal (Watts)", max_length=255, null=True)
     tipo = models.CharField(verbose_name="Tipo", max_length=255)
     tipo_uso = models.CharField(verbose_name="Tipo de Uso", choices=TIPOS_USO, max_length=255)
@@ -405,9 +328,6 @@ class ServidorHostnameIP(models.Model):
         unique_together = (("hostnameip"),)
         verbose_name = "Hostname"
         verbose_name_plural = "Hostnames"
-        ordering = [
-            "servidor__rack_posicao",
-        ]
 
     def __str__(self):
         return self.hostnameip.hostname
@@ -560,3 +480,4 @@ class AmbienteVirtual(models.Model):
 
     def __str__(self):
         return f"{self.nome} ({self.virtualizador} { self.versao})"
+

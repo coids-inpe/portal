@@ -190,7 +190,7 @@ GARB_CONFIG = {
                 {"model": "infra.equipamentoparte"},
                 {"model": "infra.ambientevirtual"},
                 {"model": "infra.templatevm"},
-                {"model": "infra.rack"},
+                {"label": "Racks", "route": "infra:netbox_racks", "auth": "all"},
                 {"model": "infra.hostnameip"},
                 {"model": "infra.rede"},
             ],

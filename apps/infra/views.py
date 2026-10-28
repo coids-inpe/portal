@@ -10,148 +10,33 @@ from django.contrib import messages
 from django.contrib.auth.mixins import (LoginRequiredMixin,
                                         PermissionRequiredMixin)
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
-from django.views.generic import DetailView
+from django.views.generic import DetailView, ListView
 from django.views.generic.base import RedirectView, TemplateView
 from django.views.generic.edit import CreateView, FormView
+from django.template.loader import render_to_string
 from garb.views import ViewContextMixin
 
 from apps.core.models import Predio
 from apps.core.tasks import send_email_task
 from apps.core.utils.freeipa import FreeIPA
 from apps.infra.forms import OcorrenciaForm, ServidorVMForm
-from apps.infra.models import (LINHAS, Equipamento, EquipamentoParte,
-                               Ocorrencia, Rack, Servidor, TemplateVM)
-from apps.infra.utils.datacenter import DataCenterMap, RackMap
+from apps.infra.models import (Equipamento, EquipamentoParte,
+                               Ocorrencia, Servidor, TemplateVM)
 from apps.infra.utils.freeipa_location import Automount
 from apps.infra.utils.history import HistoryInfra
+from apps.infra.services.rack_visualization import RackVisualizationService
 from apps.infra.utils.xen_crud import XenCrud
 from apps.monitoramento.models.nagios import NagiosServicos
 from apps.colaborador.utils import export_to_pdf, export_to_xlsx
-from apps.infra.models import Storage, Servidor, Supercomputador, EquipamentoParte, AmbienteVirtual, TemplateVM, Rack, HostnameIP, Rede
+from apps.infra.models import Storage, Servidor, Supercomputador, EquipamentoParte, AmbienteVirtual, TemplateVM, HostnameIP, Rede
 from django.db.models import Sum
 from reportlab.lib.pagesizes import landscape, A4
 
-class DataCenterView(ViewContextMixin, TemplateView):
+class DataCenterView(LoginRequiredMixin, TemplateView):
     template_name = "infra/datacenter/datacenter.html"
-    title = 'Monitoramento Datacenter'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["predios"] = Predio.objects.all().filter(linhas__isnull=False, colunas__isnull=False,)
-        return context
-
-class DataCenterPredioView(TemplateView):
-    template_name = "infra/datacenter/datacenter_predio.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        predio = get_object_or_404(Predio, id=kwargs["pk"])
-        datacenter_map = DataCenterMap(predio)
-        context["quantidade_racks"] = Rack.objects.filter(predio=predio).count()
-        context["quantidade_equipamentos"] = Equipamento.objects.filter(predio=predio).filter(Q(tipo='Servidor Físico') | Q(tipo='Equipamento Físico')).count()
-        context["matriz_datacenter"] = datacenter_map.draw_datacenter(sensor=True)
-        context["sensores"] = datacenter_map.sensores
-        context["title"] = predio.predio
-        return context
-
-
-class DataCenterMapView(TemplateView):
-    template_name = "infra/datacenter/datacenter_map.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        predio = get_object_or_404(Predio, id=kwargs["pk"])
-        datacenter = DataCenterMap(predio)
-        context["matriz_datacenter"] = datacenter.draw_datacenter()
-        return context
-
-
-class DataCenterMapEditView(TemplateView):
-    template_name = "infra/datacenter/datacenter_map.html"
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        rack = get_object_or_404(Rack, id=kwargs["pk"])
-        datacenter = DataCenterMap(rack.predio, id_rack=rack.pk)
-        context["matriz_datacenter"] = datacenter.draw_datacenter()
-        return context
-
-
-class DataCenterJSONView(TemplateView):
-    search = None
-    racks_id_templates = []
-
-    def get(self, request, *args, **kwargs):
-        context = self.get_context_data(**kwargs)
-        self.search = request.GET.get("search", None).lower()
-        return self.render_to_response(context)
-
-    def render_to_response(self, context, **response_kwargs):
-        if self.search:
-            servidores = chain(Servidor.objects.filter(nome__contains=str(self.search)), EquipamentoParte.objects.filter(marca__icontains=str(self.search)), EquipamentoParte.objects.filter(modelo__icontains=str(self.search)))
-            self.racks_id_templates = [f'div[data-element="#rack_{str(x.rack.id)}"]' for x in servidores if x.rack is not None ]
-        return HttpResponse(json.dumps(list(dict.fromkeys(self.racks_id_templates))), content_type="application/json")
-
-
-class DataCenterRackDetailView(TemplateView):
-    template_name = "infra/datacenter/rack_detail.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        rack = RackMap(self.request.GET.get("pk", None), self.request.GET.get("search", None).lower())
-        context["rack"] = rack.draw_rack()
-        return context
-
-
-class RackQRCodeView(DetailView):
-    model = Rack
-    template_name = "infra/rack/qrcode.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        qrcode = pyqrcode.create(self.request.scheme + "://" + self.request.get_host() + reverse("infra:rack_detail", args=[context["rack"].id]))
-        file = io.BytesIO()
-        qrcode.png(file, scale=6)
-        context["qrcode"] = base64.b64encode(file.getvalue()).decode("ascii")
-        return context
-
-
-class RackDetailView(DetailView):
-    model = Rack
-    template_name = "infra/rack/rack_detail.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        rack = RackMap(context["rack"].id, None)
-        context["rack"] = rack.draw_rack()
-        return context
-
-
-class RackServerDetailView(DetailView):
-    model = Equipamento
-    template_name = "infra/rack/rack_server_detail.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["form_ocorrencia"] = OcorrenciaForm(initial={"equipamento": self.get_object()})
-        return context
-
-
-class OcorrenciaNewView(CreateView):
-    model = Ocorrencia
-    form_class = OcorrenciaForm
-    template_name = "infra/rack/rack_server_detail.html"
-    rack_id = 0
-
-    def form_valid(self, form):
-        ocorrencia = form.save(commit=False)
-        self.rack_id = ocorrencia.equipamento.rack.id
-        return super(OcorrenciaNewView, self).form_valid(form)
-
-    def get_success_url(self, **kwargs):
-        return reverse_lazy("infra:rack_detail", kwargs={"pk": self.rack_id})
 
 
 class CriarServidorLdapView(LoginRequiredMixin, PermissionRequiredMixin, RedirectView):
@@ -255,6 +140,8 @@ class CriarVmProgressView(LoginRequiredMixin, TemplateView):
         context["template"] = get_object_or_404(TemplateVM, id=self.kwargs['template_id'])
         context["task_id"] = self.kwargs['task_id'] 
         return context
+
+
 
 # Exportar servidores
 def export_servidor_to_pdf(request):
@@ -452,3 +339,57 @@ def export_rede_to_pdf(request):
 def export_rede_to_excel(request):
     queryset = Rede.objects.all()
     return export_to_xlsx(queryset, fields=["rede", "ip", "prioridade_montagem"], title="Relatório de Redes", filename="redes.xlsx")
+
+# Consulta os racks do NetBox para a página de ocupação.
+class GetNetboxRacksView(LoginRequiredMixin, TemplateView):
+
+    template_name = "infra/rack/netbox_racks.html"
+    page_size = 12
+
+    def get(self, request: HttpRequest, *args, **kwargs):
+    
+        context = self.get_context_data(**kwargs)
+
+        # "Carregar mais" pede apenas os cartões da próxima página.
+        if request.GET.get("partial") == "1":
+
+            # Renderiza só o trecho HTML que será acrescentado à lista atual.
+            cards_html = render_to_string(
+                "infra/rack/_netbox_rack_cards.html", context, request=request
+            )
+
+            # O navegador usa next_offset para saber de onde carregar depois.
+            response_data = {
+                "html": cards_html,
+                "next_offset": context["next_offset"],
+            }
+
+            # Uma falha na consulta ao NetBox é sinalizada nesta resposta parcial.
+            if context["netbox_error"]:
+                status_code = 502
+            else:
+                status_code = 200
+
+            return JsonResponse(response_data, status=status_code)
+
+        # Sem "partial=1", entrega a página completa na primeira visita.
+        return self.render_to_response(context)
+
+
+    def get_context_data(self, **kwargs):
+        
+        # Mantém os dados que a TemplateView já coloca no contexto.
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Racks do NetBox"
+
+        # Lê os filtros e a posição da página na URL. O service consulta o
+        # NetBox e devolve os grupos, racks, total e próximo offset.
+        context.update(RackVisualizationService().build_page(
+            search_query=self.request.GET.get("q", ""),
+            selected_group=self.request.GET.get("group", ""),
+            offset=self.request.GET.get("offset", 0),
+            page_size=self.page_size,
+        ))
+
+        # O template usa essas chaves para desenhar a página.
+        return context

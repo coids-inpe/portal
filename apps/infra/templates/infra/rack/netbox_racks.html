@@ -1,0 +1,100 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'infra/css/netbox_racks.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <ul class="breadcrumb">
+        <li><a href="{% url 'infra:datacenter' %}">Monitoramento datacenter</a><span class="divider">/</span></li>
+        <li class="active">Racks</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="netbox-page p-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+        <div>
+            <h1 class="mb-1">Racks</h1>
+            <p class="text-muted mb-0">Posições ocupadas na frente de cada rack.</p>
+        </div>
+    </div>
+
+    <form method="get" class="netbox-filters mb-3" role="search">
+        <div>
+            <label for="netbox-rack-name">Nome do rack</label>
+            <input id="netbox-rack-name" type="search" name="q" value="{{ search_query }}" placeholder="Buscar rack" class="form-control">
+        </div>
+        <div>
+            <label for="netbox-rack-group">Grupo</label>
+            <select id="netbox-rack-group" name="group" class="form-control">
+                <option value="">Todos os grupos</option>
+                {% for group in groups %}
+                    <option value="{{ group.id }}"{% if selected_group == group.id %} selected{% endif %}>{{ group.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="button">Buscar</button>
+        {% if search_query or selected_group %}<a href="{% url 'infra:netbox_racks' %}">Limpar filtros</a>{% endif %}
+    </form>
+
+    {% if netbox_error %}
+        <div class="alert alert-danger" role="alert">Não foi possível consultar os racks do NetBox. Verifique a conexão e tente novamente.</div>
+    {% elif not racks %}
+        <div class="alert alert-info" role="status">{% if search_query or selected_group %}Nenhum rack corresponde aos filtros.{% else %}Nenhum rack foi encontrado no NetBox.{% endif %}</div>
+    {% else %}
+        <div class="netbox-legend mb-3" aria-label="Legenda">
+            <span><i class="netbox-legend-color occupied"></i> Ocupado</span>
+            <span><i class="netbox-legend-color free"></i> Livre</span>
+            <span class="netbox-legend-total badge p-2">{{ total_racks }} racks</span>
+        </div>
+        <div id="netbox-rack-grid" class="netbox-rack-grid">
+            {% include "infra/rack/_netbox_rack_cards.html" %}
+        </div>
+        {% if next_offset != None %}
+            <div class="text-center my-4">
+                <button type="button" id="netbox-load-more" class="button" data-next-offset="{{ next_offset }}">Carregar mais</button>
+            </div>
+        {% endif %}
+        <p id="netbox-load-status" class="text-center" role="status" aria-live="polite"></p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+(function () {
+    const button = document.getElementById('netbox-load-more');
+    if (!button) return;
+    const status = document.getElementById('netbox-load-status');
+    button.addEventListener('click', async function () {
+        button.disabled = true;
+        button.textContent = 'Carregando...';
+        status.textContent = '';
+        const url = new URL(window.location.href);
+        url.searchParams.set('partial', '1');
+        url.searchParams.set('offset', button.dataset.nextOffset);
+        try {
+            const response = await fetch(url, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Falha na consulta');
+            const data = await response.json();
+            document.getElementById('netbox-rack-grid').insertAdjacentHTML('beforeend', data.html);
+            if (data.next_offset === null) {
+                button.remove();
+                status.textContent = 'Todos os racks foram carregados.';
+            } else {
+                button.dataset.nextOffset = data.next_offset;
+            }
+        } catch (error) {
+            status.textContent = 'Não foi possível carregar mais racks. Tente novamente.';
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Carregar mais';
+        }
+    });
+})();
+</script>
+{% endblock %}

@@ -5,7 +5,7 @@ from django.forms import ModelChoiceField
 from apps.core.models import OperatingSystem, ServidorTenants, Tenants
 from garb.forms import GarbForm
 
-from apps.infra.models import Equipamento, EquipamentoGrupoAcesso, EquipamentoParte, HostnameIP, Ocorrencia, Rack, Servidor, ServidorHostnameIP, StorageAreaGrupoTrabalho, TemplateComando, TemplateVM
+from apps.infra.models import Equipamento, EquipamentoGrupoAcesso, EquipamentoParte, HostnameIP, Ocorrencia, Servidor, ServidorHostnameIP, StorageAreaGrupoTrabalho, TemplateComando, TemplateVM
 from django.core.exceptions import ValidationError
 
 
@@ -31,19 +31,16 @@ class ServidorForm(forms.ModelForm):
     
     vm_remover = forms.BooleanField(required=False, label="Remover VM ")
     tipo = forms.ChoiceField(choices=TIPOS_SERVIDOR, )
-    rack = forms.ModelChoiceField(queryset=Rack.objects.all(), label="Rack", required=False,)
     nome = HostnameChoiceField(queryset=HostnameIP.objects.filter(reservado=False).order_by('tipo'), label="Hostname", required=True, widget=forms.Select(attrs={"data-live-search": "True"}))
     vinculado = forms.ModelChoiceField(queryset=Equipamento.objects.filter(Q(tipo='storage') | Q(tipo='Supercomputador')), required=False, widget=forms.Select(attrs={"data-live-search": "True"}))
 
     class Meta:
         model = Servidor
-        fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "status", "servicos"]
+        fields = ["nome", "tipo", "tipo_uso", "predio", "datacenter", "descricao", "marca", "modelo", "serie", "patrimonio", "garantia", "consumo", "vinculado", "status", "servicos"]
 
     def __init__(self, *args, **kwargs):
         super(ServidorForm, self).__init__(*args, **kwargs)
         if self.data.get("tipo") == "Servidor Virtual":
-            self.fields["rack"].required = False
-            self.fields["rack_tamanho"].required = False
             self.fields["marca"].required = False
             self.fields["modelo"].required = False
             self.fields["consumo"].required = False
@@ -68,13 +65,6 @@ class HostnameIPForm(forms.ModelForm):
         fields = "__all__"
 
 
-class RackForm(forms.ModelForm):
-    class Meta:
-        model = Rack
-        fields = ["marca", "modelo", "serie", "patrimonio", "predio", "consumo", "pdu1", "pdu2", "tamanho", "kvm_posicao", "posicao_linha_inicial", "posicao_linha_final", "posicao_coluna_inicial", "posicao_coluna_final"]
-        widgets = {"posicao_linha_inicial": forms.HiddenInput(), "posicao_linha_final": forms.HiddenInput(), "posicao_coluna_inicial": forms.HiddenInput(), "posicao_coluna_final": forms.HiddenInput()}
-
-
 class HostnameIPInLineForm(forms.ModelForm):
     hostnameip = forms.ModelChoiceField(queryset=HostnameIP.objects.filter(reservado=False))
 
@@ -85,12 +75,11 @@ class HostnameIPInLineForm(forms.ModelForm):
 
 
 class EquipamentoParteForm(forms.ModelForm):
-    rack = forms.ModelChoiceField(queryset=Rack.objects.all(), label="Rack", required=True)
     vinculado = forms.ModelChoiceField(queryset=Equipamento.objects.filter(Q(tipo='storage') | Q(tipo='Supercomputador')), required=False,)
     
     class Meta:
         model = EquipamentoParte
-        fields = ["marca", "modelo","tipo_uso", "serie", "patrimonio", "predio", "garantia", "consumo", "rack", "rack_tamanho", "vinculado", "descricao"]
+        fields = ["marca", "modelo","tipo_uso", "serie", "patrimonio", "predio", "garantia", "consumo", "vinculado", "descricao"]
 
 
 class StorageAreaGrupoTrabalhoInLineForm(forms.ModelForm):

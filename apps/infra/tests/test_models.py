@@ -5,41 +5,15 @@ from datetime import datetime, timedelta
 from apps.core.models import Divisao, GrupoAcesso, GrupoTrabalho, Predio
 from apps.infra.models import (AmbienteVirtual,  Equipamento,
                                EquipamentoGrupoAcesso, EquipamentoParte,
-                               Ocorrencia, Rack, Storage, StorageArea,
+                               Ocorrencia, Storage, StorageArea,
                                StorageAreaGrupoTrabalho, Supercomputador,
                                HostnameIP, ServidorHostnameIP,Rede, 
-                               Servidor, Rack, EquipamentoGrupoAcesso)
+                               Servidor, EquipamentoGrupoAcesso)
 from django.core.exceptions import EmptyResultSet
 
 pytestmark = pytest.mark.django_db
 
 
-def test_rack() -> None:
-    predio =  mixer.blend(Predio, predio_sistema='RACK')
-    rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="BA", posicao_coluna_inicial=38, posicao_coluna_final=38, consumo=1000, predio=predio)
-    assert rack.linha_inicial() == 24
-    assert rack.linha_final() == 27
-    assert rack.linha_nome() == 25
-    assert rack.coluna_inicial() == 38
-    assert rack.coluna_final() == 38
-    assert rack.coluna_nome() == 38
-    rack.comsumo_servidores = 100
-    assert rack.disponivel() == 900
-    rack.save()
-    assert rack.rack == "RACKAX38"
-    assert str(rack) == "RACKAX38"
-
-    rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="AX", posicao_coluna_inicial=38, posicao_coluna_final=40, consumo=1000)
-    assert rack.linha_nome() == 24
-    assert rack.coluna_nome() == 39
-
-    rack = mixer.blend(Rack, posicao_linha_inicial="BB" , posicao_linha_final="AX", posicao_coluna_inicial=40, posicao_coluna_final=38, consumo=1000)
-    assert rack.linha_nome() == 27
-    assert rack.coluna_nome() == 40
-    assert rack.posicao_linha_inicial_numero() == 28
-
-    rack = mixer.blend(Rack, posicao_linha_inicial="AX" , posicao_linha_final="AX", posicao_coluna_inicial=40, posicao_coluna_final=38, consumo=1000)
-    assert rack.coluna_nome() == 39
 
 
 def test_ocorrencia() -> None:
@@ -95,8 +69,7 @@ def test_supercomputador() -> None:
     assert supercomputador.racks == [] 
     assert supercomputador.update == None
     assert str(supercomputador) == "Cray CX50"
-    rack = mixer.blend(Rack)
-    supercomputador.add_rack(rack)
+    supercomputador.add_rack("rack-netbox")
     assert len(supercomputador.racks) == 1
     supercomputador.set_update(int(time.time()))
     assert supercomputador.update == datetime.fromtimestamp(int(time.time()))
