@@ -1,25 +1,20 @@
-
-import base64
-import io
-import json
-from itertools import chain
-
-import pyqrcode
+from requests.exceptions import RequestException
+from python_freeipa.exceptions import FreeIPAError
+from XenAPI import Failure as XenFailure
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import (LoginRequiredMixin,
                                         PermissionRequiredMixin)
-from django.db.models import Q
-from django.http import HttpResponse, JsonResponse, HttpRequest
-from django.shortcuts import get_object_or_404
-from django.urls import reverse, reverse_lazy
-from django.views.generic import DetailView, ListView
-from django.views.generic.base import RedirectView, TemplateView
-from django.views.generic.edit import CreateView, FormView
-from django.template.loader import render_to_string
-from garb.views import ViewContextMixin
 
-from apps.core.models import Predio
+from django.http import JsonResponse, HttpRequest
+from django.shortcuts import get_object_or_404
+from django.urls import reverse_lazy
+from django.views.generic.base import RedirectView, TemplateView
+from django.views.generic.edit import FormView
+from django.template.loader import render_to_string
+
+
+
 from apps.core.tasks import send_email_task
 from apps.core.utils.freeipa import FreeIPA
 from apps.infra.forms import OcorrenciaForm, ServidorVMForm
@@ -28,6 +23,7 @@ from apps.infra.models import (Equipamento, EquipamentoParte,
 from apps.infra.utils.freeipa_location import Automount
 from apps.infra.utils.history import HistoryInfra
 from apps.infra.services.rack_visualization import RackVisualizationService
+from apps.infra.service_errors import service_unavailable
 from apps.infra.utils.xen_crud import XenCrud
 from apps.monitoramento.models.nagios import NagiosServicos
 from apps.colaborador.utils import export_to_pdf, export_to_xlsx
@@ -41,6 +37,12 @@ class DataCenterView(LoginRequiredMixin, TemplateView):
 
 class CriarServidorLdapView(LoginRequiredMixin, PermissionRequiredMixin, RedirectView):
     permission_required = "infra.change_servidor"
+
+    def get(self, request, *args, **kwargs):
+        try:
+            return super().get(request, *args, **kwargs)
+        except (FreeIPAError, RequestException, OSError):
+            return service_unavailable(request, "FreeIPA")
 
     def get_redirect_url(self, *args, **kwargs):
         servidor = get_object_or_404(Servidor, id=kwargs["pk"])
@@ -122,7 +124,10 @@ class CriarVmView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         self.template = form.cleaned_data['template']
         memoria = form.cleaned_data['memoria']
         cpu = form.cleaned_data['cpu']
-        self.task = XenCrud(self.request, vm, self.template.ambiente_virtual).create_vm(self.template, memoria, cpu)
+        try:
+            self.task = XenCrud(self.request, vm, self.template.ambiente_virtual).create_vm(self.template, memoria, cpu)
+        except (XenFailure, OSError, RequestException):
+            return service_unavailable(self.request, "Xen")
         if not self.task:
             return super().form_invalid(form)
         return super().form_valid(form)
@@ -144,201 +149,207 @@ class CriarVmProgressView(LoginRequiredMixin, TemplateView):
 
 
 # Exportar servidores
-def export_servidor_to_pdf(request):
-    queryset = Servidor.objects.all()
-    page_title = "Relatório de Servidores"
-    return export_to_pdf(
-        queryset=queryset,
-        fields={
-            "nome": "Nome",
-            "tipo": "Tipo",
-            "tipo_uso": "Tipo de Uso",
-            "datacenter": "Data Center",
-            "descricao": "Descrição",
-            "grupo": "Grupo",
-            "responsavel_grupo": "Responsável Grupo",
-            "status": "Status"
-        },
-        filename="servidores__.pdf",
-        page_title=page_title,
-        pagesize=landscape(A4)
-    )
+# def export_servidor_to_pdf(request):
+#     queryset = Servidor.objects.all()
+#     page_title = "Relatório de Servidores"
+#     return export_to_pdf(
+#         queryset=queryset,
+#         fields={
+#             "nome": "Nome",
+#             "tipo": "Tipo",
+#             "tipo_uso": "Tipo de Uso",
+#             "datacenter": "Data Center",
+#             "descricao": "Descrição",
+#             "grupo": "Grupo",
+#             "responsavel_grupo": "Responsável Grupo",
+#             "status": "Status"
+#         },
+#         filename="servidores__.pdf",
+#         page_title=page_title,
+#         pagesize=landscape(A4)
+#     )
 
-def export_servidor_to_excel(request):
-    queryset = Servidor.objects.all()
-    return export_to_xlsx(
-        queryset,
-        fields={
-            "nome": "Nome",
-            "tipo": "Tipo",
-            "tipo_uso": "Tipo de Uso",
-            "datacenter": "Data Center",
-            "descricao": "Descrição",
-            "grupo": "Grupo",
-            "responsavel": "Responsável",
-            "status": "Status"
-        },
-        title="Relatório de Servidores",
-        filename="servidores.xlsx"
-    )
+# def export_servidor_to_excel(request):
+#     queryset = Servidor.objects.all()
+#     return export_to_xlsx(
+#         queryset,
+#         fields={
+#             "nome": "Nome",
+#             "tipo": "Tipo",
+#             "tipo_uso": "Tipo de Uso",
+#             "datacenter": "Data Center",
+#             "descricao": "Descrição",
+#             "grupo": "Grupo",
+#             "responsavel": "Responsável",
+#             "status": "Status"
+#         },
+#         title="Relatório de Servidores",
+#         filename="servidores.xlsx"
+#     )
 
 
 # Exportar Storages
-def export_storages_to_pdf(request):
-    queryset = Storage.objects.all()
-    page_title = "Relatório de Storages"
-    processed_queryset = []
+# def export_storages_to_pdf(request):
+#     queryset = Storage.objects.all()
+#     page_title = "Relatório de Storages"
+#     processed_queryset = []
+#
+#     for storage in queryset:
+#         storage.capacidade_value = f"{storage.capacidade():.2f}"
+#         processed_queryset.append(storage)
+#
+#     return export_to_pdf(
+#         queryset=processed_queryset,
+#         fields={
+#             "marca": "Marca",
+#             "modelo": "Modelo",
+#             "descricao": "Descrição",
+#             "capacidade_value": "Capacidade"
+#         },
+#         filename="storages.pdf",
+#         page_title=page_title
+#     )
 
-    for storage in queryset:
-        storage.capacidade_value = f"{storage.capacidade():.2f}"
-        processed_queryset.append(storage)
-
-    return export_to_pdf(
-        queryset=processed_queryset,
-        fields={
-            "marca": "Marca",
-            "modelo": "Modelo",
-            "descricao": "Descrição",
-            "capacidade_value": "Capacidade"
-        },
-        filename="storages.pdf",
-        page_title=page_title
-    )
-
-def export_storages_to_excel(request):
-    queryset = Storage.objects.all()
-    processed_queryset = []
-    
-    for storage in queryset:
-        storage.capacidade_value = f"{storage.capacidade():.2f}"  
-        processed_queryset.append(storage)
-    
-    return export_to_xlsx(
-        queryset=processed_queryset,
-        fields={
-            "marca": "Marca",
-            "modelo": "Modelo",
-            "descricao": "Descrição",
-            "capacidade_value": "Capacidade"
-        },
-        title="Relatório de Storages",
-        filename="storages.xlsx"
-    )
+# def export_storages_to_excel(request):
+#     queryset = Storage.objects.all()
+#     processed_queryset = []
+#
+#     for storage in queryset:
+#         storage.capacidade_value = f"{storage.capacidade():.2f}"
+#         processed_queryset.append(storage)
+#
+#     return export_to_xlsx(
+#         queryset=processed_queryset,
+#         fields={
+#             "marca": "Marca",
+#             "modelo": "Modelo",
+#             "descricao": "Descrição",
+#             "capacidade_value": "Capacidade"
+#         },
+#         title="Relatório de Storages",
+#         filename="storages.xlsx"
+#     )
 
 
 
 # Exportar Supercomputador
-def export_supercomputador_to_pdf(request):
-    queryset = Supercomputador.objects.all()
-    page_title = "Relatório de Supercomputadores"
-    return export_to_pdf(queryset=queryset, fields=["marca", "modelo", "kafka_topico_realtime", "kafka_topico_historico"], filename="supercomputador__.pdf", page_title=page_title)
+# def export_supercomputador_to_pdf(request):
+#     queryset = Supercomputador.objects.all()
+#     page_title = "Relatório de Supercomputadores"
+#     return export_to_pdf(queryset=queryset, fields=["marca", "modelo", "kafka_topico_realtime", "kafka_topico_historico"], filename="supercomputador__.pdf", page_title=page_title)
 
-def export_supercomputador_to_excel(request):
-    queryset = Supercomputador.objects.all()
-    return export_to_xlsx(queryset, fields=["marca", "modelo", "kafka_topico_realtime", "kafka_topico_historico"], title="Relatório de Supercomputadores", filename="supercomputador.xlsx")
+# def export_supercomputador_to_excel(request):
+#     queryset = Supercomputador.objects.all()
+#     return export_to_xlsx(queryset, fields=["marca", "modelo", "kafka_topico_realtime", "kafka_topico_historico"], title="Relatório de Supercomputadores", filename="supercomputador.xlsx")
 
 # Exportar Partes de Equipamento
-def export_partes_equipamento_to_pdf(request):
-    queryset = EquipamentoParte.objects.all()
-    page_title = "Relatório de Partes de Equipamento"
-    return export_to_pdf(queryset=queryset, fields=["patrimonio", "marca", "modelo", "vinculado", "status"], filename="partes_equipamento__.pdf", page_title=page_title)
+# def export_partes_equipamento_to_pdf(request):
+#     queryset = EquipamentoParte.objects.all()
+#     page_title = "Relatório de Partes de Equipamento"
+#     return export_to_pdf(queryset=queryset, fields=["patrimonio", "marca", "modelo", "vinculado", "status"], filename="partes_equipamento__.pdf", page_title=page_title)
 
-def export_partes_equipamento_to_excel(request):
-    queryset = EquipamentoParte.objects.all()
-    return export_to_xlsx(queryset, fields=["patrimonio", "marca", "modelo", "vinculado", "status"], title="Relatório de Partes de Equipamento", filename="partes_equipamento.xlsx")
+# def export_partes_equipamento_to_excel(request):
+#     queryset = EquipamentoParte.objects.all()
+#     return export_to_xlsx(queryset, fields=["patrimonio", "marca", "modelo", "vinculado", "status"], title="Relatório de Partes de Equipamento", filename="partes_equipamento.xlsx")
 
 # Exportar Ambiente virtual
-def export_ambiente_virtual_to_pdf(request):
-    queryset = AmbienteVirtual.objects.all()
-    page_title = "Relatório de Ambientes Virtuais"
-    return export_to_pdf(queryset=queryset, fields=["nome", "virtualizador", "versao", "status"], filename="ambiente_virtual__.pdf", page_title=page_title)
+# def export_ambiente_virtual_to_pdf(request):
+#     queryset = AmbienteVirtual.objects.all()
+#     page_title = "Relatório de Ambientes Virtuais"
+#     return export_to_pdf(queryset=queryset, fields=["nome", "virtualizador", "versao", "status"], filename="ambiente_virtual__.pdf", page_title=page_title)
 
-def export_ambiente_virtual_to_excel(request):
-    queryset = AmbienteVirtual.objects.all()
-    return export_to_xlsx(queryset, fields=["nome", "virtualizador", "versao", "status"], title="Relatório de Ambientes Virtuais", filename="ambiente_virtual.xlsx")
+# def export_ambiente_virtual_to_excel(request):
+#     queryset = AmbienteVirtual.objects.all()
+#     return export_to_xlsx(queryset, fields=["nome", "virtualizador", "versao", "status"], title="Relatório de Ambientes Virtuais", filename="ambiente_virtual.xlsx")
 
 # Exportar Templates
-def export_templates_to_pdf(request):
-    queryset = TemplateVM.objects.all()
-    page_title = "Relatório de Templates"
-    return export_to_pdf(queryset=queryset, fields=["nome", "configuracao", "ambiente_virtual"], filename="templates__.pdf", page_title=page_title)
+# def export_templates_to_pdf(request):
+#     queryset = TemplateVM.objects.all()
+#     page_title = "Relatório de Templates"
+#     return export_to_pdf(queryset=queryset, fields=["nome", "configuracao", "ambiente_virtual"], filename="templates__.pdf", page_title=page_title)
 
-def export_templates_to_excel(request):
-    queryset = TemplateVM.objects.all()
-    return export_to_xlsx(queryset, fields=["nome", "configuracao", "ambiente_virtual"], title="Relatório de Templates", filename="templates.xlsx")
+# def export_templates_to_excel(request):
+#     queryset = TemplateVM.objects.all()
+#     return export_to_xlsx(queryset, fields=["nome", "configuracao", "ambiente_virtual"], title="Relatório de Templates", filename="templates.xlsx")
 
 # Exportar Racks
-def export_racks_to_pdf(request):
-    queryset = Rack.objects.all()
-    page_title = "Relatório de Racks"
-    processed_queryset = []
+# class ExportRacksToPdf(LoginRequiredMixin, TemplateView):
+#
+#     def get(request: HttpRequest):
+#
+#         queryset = GetNetboxRacksView.get(request)
+#         page_title = "Relatório de Racks"
+#         processed_queryset = []
+#
+#         for rack in queryset:
+#             rack.qtd_equip = rack
+#             consumo_total = rack.equipamento_set.aggregate(Sum("consumo"))["consumo__sum"]
+#             rack.consumo_eqp = consumo_total if consumo_total is not None else "-"
+#             processed_queryset.append(rack)
+#
+#         return export_to_pdf(
+#             queryset=processed_queryset,
+#             fields={
+#                 "rack": "Rack",
+#                 "qtd_equip": "Qtd. Eqp.",
+#                 "consumo": "Consumo Limite",
+#                 "consumo_eqp": "Consumo Eqp.",
+#                 "pdu1": "Primeiro PDU",
+#                 "pdu2": "Segundo PDU"
+#             },
+#             filename="racks__.pdf",
+#             page_title=page_title
+#         )
 
-    for rack in queryset:
-        rack.qtd_equip = rack.equipamento_set.count()
-        consumo_total = rack.equipamento_set.aggregate(Sum("consumo"))["consumo__sum"]
-        rack.consumo_eqp = consumo_total if consumo_total is not None else "-"
-        processed_queryset.append(rack)
-
-    return export_to_pdf(
-        queryset=processed_queryset,
-        fields={
-            "rack": "Rack",
-            "qtd_equip": "Qtd. Eqp.",
-            "consumo": "Consumo Limite",
-            "consumo_eqp": "Consumo Eqp.",
-            "pdu1": "Primeiro PDU",
-            "pdu2": "Segundo PDU"
-        },
-        filename="racks__.pdf",
-        page_title=page_title
-    )
-
-def export_racks_to_excel(request):
-    queryset = Rack.objects.all()
-    page_title = "Relatório de Racks"
-
-    processed_queryset = []
-    for rack in queryset:
-        setattr(rack, "Qtd. Eqp.", rack.equipamento_set.count())
-        consumo_total = rack.equipamento_set.aggregate(Sum("consumo"))["consumo__sum"]
-        setattr(rack, "Consumo Eqp.", consumo_total if consumo_total is not None else "-")
-        processed_queryset.append(rack)
-
-    return export_to_xlsx(
-        queryset=processed_queryset,
-        fields={
-            "rack": "Rack",
-            "Qtd. Eqp.": "Qtd. Equipamentos",
-            "predio": "Prédio",
-            "consumo": "Consumo Limite",
-            "Consumo Eqp.": "Consumo dos Equipamentos",
-            "pdu1": "Primeiro PDU",
-            "pdu2": "Segundo PDU"
-        },
-        title=page_title,
-        filename="racks.xlsx"
-    )
+# def export_racks_to_excel(request):
+#     queryset = Rack.objects.all()
+#     page_title = "Relatório de Racks"
+#
+#     processed_queryset = []
+#     for rack in queryset:
+#         setattr(rack, "Qtd. Eqp.", rack.equipamento_set.count())
+#         consumo_total = rack.equipamento_set.aggregate(Sum("consumo"))["consumo__sum"]
+#         setattr(rack, "Consumo Eqp.", consumo_total if consumo_total is not None else "-")
+#         processed_queryset.append(rack)
+#
+#     return export_to_xlsx(
+#         queryset=processed_queryset,
+#         fields={
+#             "rack": "Rack",
+#             "Qtd. Eqp.": "Qtd. Equipamentos",
+#             "predio": "Prédio",
+#             "consumo": "Consumo Limite",
+#             "Consumo Eqp.": "Consumo dos Equipamentos",
+#             "pdu1": "Primeiro PDU",
+#             "pdu2": "Segundo PDU"
+#         },
+#         title=page_title,
+#         filename="racks.xlsx"
+#     )
 
 
 # Exportar HostnameIP
-def export_hostnameip_to_pdf(request):
-    queryset = HostnameIP.objects.all()
-    page_title = "Relatório de Hostname e IPs"
-    return export_to_pdf(queryset=queryset, fields=["hostname", "ip", "reservado"], filename="hostnames-ips__.pdf", page_title=page_title)
+# def export_hostnameip_to_pdf(request):
+#     queryset = HostnameIP.objects.all()
+#     page_title = "Relatório de Hostname e IPs"
+#     return export_to_pdf(queryset=queryset, fields=["hostname", "ip", "reservado"], filename="hostnames-ips__.pdf", page_title=page_title)
 
-def export_hostnameip_to_excel(request):
-    queryset = HostnameIP.objects.all()
-    return export_to_xlsx(queryset, fields=["hostname", "ip", "reservado"], title="Relatório de Hostname e IPs", filename="hostnames-ips.xlsx")
+# def export_hostnameip_to_excel(request):
+#     queryset = HostnameIP.objects.all()
+#     return export_to_xlsx(queryset, fields=["hostname", "ip", "reservado"], title="Relatório de Hostname e IPs", filename="hostnames-ips.xlsx")
 
 # Exportar Rede
-def export_rede_to_pdf(request):
-    queryset = Rede.objects.all()
-    page_title = "Relatório de Redes"
-    return export_to_pdf(queryset=queryset, fields=["rede", "ip", "prioridade_montagem"], filename="redes__.pdf", page_title=page_title)
+# def export_rede_to_pdf(request):
+#     queryset = Rede.objects.all()
+#     page_title = "Relatório de Redes"
+#     return export_to_pdf(queryset=queryset, fields=["rede", "ip", "prioridade_montagem"], filename="redes__.pdf", page_title=page_title)
 
-def export_rede_to_excel(request):
-    queryset = Rede.objects.all()
-    return export_to_xlsx(queryset, fields=["rede", "ip", "prioridade_montagem"], title="Relatório de Redes", filename="redes.xlsx")
+# def export_rede_to_excel(request):
+#     queryset = Rede.objects.all()
+#     return export_to_xlsx(queryset, fields=["rede", "ip", "prioridade_montagem"], title="Relatório de Redes", filename="redes.xlsx")
+
+
+
 
 # Consulta os racks do NetBox para a página de ocupação.
 class GetNetboxRacksView(LoginRequiredMixin, TemplateView):
@@ -349,6 +360,9 @@ class GetNetboxRacksView(LoginRequiredMixin, TemplateView):
     def get(self, request: HttpRequest, *args, **kwargs):
     
         context = self.get_context_data(**kwargs)
+
+        if context["netbox_error"] and request.GET.get("partial") != "1":
+            return service_unavailable(request, "NetBox")
 
         # "Carregar mais" pede apenas os cartões da próxima página.
         if request.GET.get("partial") == "1":

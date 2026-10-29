@@ -65,6 +65,9 @@ class RackVisualizationService:
 
         for rack in batch:
             card = self.build_card(rack)
+            if card["occupied_units"] is None:
+                page["netbox_error"] = True
+                return page
             page["racks"].append(card)
 
         return page

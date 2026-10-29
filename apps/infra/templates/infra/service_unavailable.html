@@ -1,0 +1,9 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div id="content-main" class="p-4">
+    <h1>{{ service }} indisponível</h1>
+    <p>Não foi possível acessar o serviço agora. Tente novamente mais tarde.</p>
+    <a class="button" href="{{ back_url }}">Voltar à página anterior</a>
+</div>
+{% endblock %}

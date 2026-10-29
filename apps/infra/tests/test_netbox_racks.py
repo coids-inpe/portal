@@ -167,12 +167,63 @@ def test_netbox_racks_filters_name_and_group_across_batches():
 
 
 def test_netbox_racks_shows_api_error():
-    request = RequestFactory().get(reverse("infra:netbox_racks"))
+    request = RequestFactory().get(reverse("infra:netbox_racks"), HTTP_REFERER="/infra/datacenter/")
     request.user = Mock(is_authenticated=True)
     request.user.has_perm.return_value = True
 
     with patch("apps.infra.services.rack_visualization.get_rack_data", return_value=None):
         response = GetNetboxRacksView.as_view()(request)
 
-    response.render()
-    assert b"N\xc3\xa3o foi poss\xc3\xadvel" in response.content
+    assert response.status_code == 503
+    assert b"NetBox indispon\xc3\xadvel" in response.content
+    assert b'href="/infra/datacenter/"' in response.content
+
+
+def test_netbox_error_ignores_external_return_url():
+    request = RequestFactory().get(reverse("infra:netbox_racks"), HTTP_REFERER="https://other.example/path")
+    request.user = Mock(is_authenticated=True)
+    with patch("apps.infra.services.rack_visualization.get_rack_data", return_value=None):
+        response = GetNetboxRacksView.as_view()(request)
+    assert response.status_code == 503
+    assert b'href="/infra/datacenter/"' in response.content
+
+
+def test_vm_creation_shows_service_error_when_xen_is_down():
+    from apps.infra.views import CriarVmView
+
+    request = RequestFactory().post(reverse("infra:netbox_racks"), HTTP_REFERER="/infra/datacenter/")
+    request.user = Mock(is_authenticated=True)
+    view = CriarVmView()
+    view.request = request
+    template = Mock()
+    form = Mock(cleaned_data={"servidor": 1, "template": template, "memoria": 1, "cpu": 1})
+    with patch("apps.infra.views.get_object_or_404", return_value=Mock()), \
+         patch("apps.infra.views.XenCrud", side_effect=OSError("offline")):
+        response = view.form_valid(form)
+    assert response.status_code == 503
+    assert b"Xen indispon" in response.content
+
+
+def test_netbox_elevation_failure_shows_service_error():
+    request = RequestFactory().get(reverse("infra:netbox_racks"))
+    request.user = Mock(is_authenticated=True)
+    with patch("apps.infra.services.rack_visualization.get_rack_data", return_value=[{"id": 1, "name": "R1", "u_height": 2}]), \
+         patch("apps.infra.services.rack_visualization.get_rack_elevation", return_value=None):
+        response = GetNetboxRacksView.as_view()(request)
+    assert response.status_code == 503
+
+
+def test_freeipa_failure_shows_service_error():
+    from python_freeipa.exceptions import FreeIPAError
+    from apps.infra.views import CriarServidorLdapView
+
+    request = RequestFactory().get("/infra/servidor/1/criarservidorldap/", HTTP_REFERER="/admin/infra/servidor/1/change/")
+    request.user = Mock(is_authenticated=True)
+    request.user.has_perms.return_value = True
+    server = Mock(conta="Aguardando")
+    server.grupos_acesso.all.return_value.exists.return_value = True
+    with patch("apps.infra.views.get_object_or_404", return_value=server), \
+         patch("apps.infra.views.FreeIPA", side_effect=FreeIPAError("offline")):
+        response = CriarServidorLdapView.as_view()(request, pk=1)
+    assert response.status_code == 503
+    assert b"FreeIPA indispon" in response.content
