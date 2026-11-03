@@ -184,6 +184,7 @@ GARB_CONFIG = {
             "icon": "fa-building",
             "sub_itens": [
                 {"label": "Datacenter", "route": "infra:datacenter", "auth": "all"},
+                {"model": "core.predio"},
                 {"model": "infra.servidor"},
                 {"model": "infra.storage"},
                 {"model": "infra.supercomputador"},

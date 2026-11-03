@@ -1,0 +1,248 @@
+.netbox-storage-page {
+  padding: 1rem;
+}
+
+.netbox-storage-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.netbox-storage-heading h1 {
+  margin: 0 0 0.25rem;
+}
+
+.netbox-storage-heading p {
+  margin: 0;
+  color: #60717d;
+}
+
+.netbox-storage-count {
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: #236db4;
+  color: #fff;
+  font-weight: 600;
+}
+
+.netbox-storage-filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border: 1px solid #cfd8dc;
+  border-radius: 4px;
+  background: #eef2f5;
+}
+
+.netbox-storage-filters > div {
+  flex: 1 1 200px;
+}
+.netbox-storage-filters label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+.netbox-storage-filters input,
+.netbox-storage-filters select {
+  width: 100%;
+  min-height: 38px;
+}
+.netbox-storage-filters .button {
+  min-height: 38px;
+  background: #0d47a1;
+  color: #fff;
+}
+.netbox-storage-filters a {
+  align-self: center;
+}
+
+.netbox-storage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.netbox-storage-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #cfd8dc;
+  border-radius: 4px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.netbox-storage-card:hover,
+.netbox-storage-card:focus-visible {
+  color: inherit;
+  text-decoration: none;
+  border-color: #0d47a1;
+  box-shadow: 0 5px 18px rgba(13, 71, 161, 0.16);
+  outline: none;
+}
+
+.netbox-storage-card-header {
+  min-height: 88px;
+  padding: 0.8rem 1rem;
+  background: #0d47a1;
+  color: #fff;
+}
+
+.netbox-storage-role {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid #a8c5e1;
+  border-radius: 3px;
+  color: #dcebf7;
+  font-size: 0.8rem;
+}
+
+.netbox-storage-card-header h2,
+.netbox-storage-card-header h3,
+.netbox-storage-card-header h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.netbox-storage-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(620px, calc(100vw - 2rem));
+  max-height: min(80vh, 760px);
+  margin: auto;
+  padding: 1.25rem;
+  overflow: auto;
+  border: 1px solid #9fb2c1;
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(20, 40, 60, 0.25);
+}
+
+.netbox-storage-dialog::backdrop {
+  background: rgba(17, 34, 49, 0.58);
+}
+
+.netbox-storage-page .netbox-server-pagination {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.netbox-storage-page .netbox-server-pagination a.button,
+.netbox-storage-page .netbox-server-pagination a.button:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: .55rem 1rem;
+  border: 0;
+  border-radius: 4px;
+  background: #0d47a1;
+  color: #fff;
+  text-decoration: none;
+}
+
+.netbox-storage-page .netbox-server-pagination a.button:hover,
+.netbox-storage-page .netbox-server-pagination a.button:focus-visible {
+  background: #236db4;
+  color: #fff;
+}
+.netbox-storage-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+.netbox-storage-dialog h2 {
+  margin: 0 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+.netbox-storage-detail-facts {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 2fr);
+  gap: 0.75rem 1rem;
+  margin: 0;
+  padding: 1.25rem;
+}
+
+.netbox-storage-detail-facts dt {
+  color: #60717d;
+  font-weight: 600;
+}
+.netbox-storage-detail-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.netbox-storage-facts {
+  display: grid;
+  grid-template-columns: minmax(75px, 1fr) minmax(0, 1.6fr);
+  gap: 0.55rem 0.75rem;
+  margin: 0;
+  padding: 1rem;
+}
+
+.netbox-storage-facts dt {
+  color: #60717d;
+  font-weight: 500;
+}
+
+.netbox-storage-facts dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.netbox-storage-status {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  background: #eef2f5;
+  color: #40576a;
+  font-weight: 600;
+}
+
+.netbox-storage-status.is-active {
+  background: #e1f2e8;
+  color: #17663b;
+}
+
+.netbox-storage-message {
+  padding: 1rem;
+  border: 1px solid #cfd8dc;
+  border-radius: 4px;
+  background: #eef2f5;
+}
+
+@media (max-width: 480px) {
+  .netbox-storage-grid {
+    grid-template-columns: 1fr;
+  }
+  .netbox-storage-page {
+    padding: 0.5rem;
+  }
+  .netbox-storage-detail-facts {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+  .netbox-storage-detail-facts dd {
+    margin-bottom: 0.65rem;
+  }
+}

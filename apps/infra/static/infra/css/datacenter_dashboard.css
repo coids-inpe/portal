@@ -1,0 +1,58 @@
+.datacenter-dashboard {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  color: #263947;
+}
+.datacenter-dashboard *, .datacenter-dashboard *::before, .datacenter-dashboard *::after { box-sizing: border-box; }
+.datacenter-dashboard-heading, .datacenter-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; flex-wrap: wrap; }
+.datacenter-dashboard-heading { margin-bottom: 1.75rem; padding-bottom: 1rem; border-bottom: 1px solid #cfd8dc; }
+.datacenter-dashboard-heading > div { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; min-width: 0; }
+.datacenter-dashboard-heading h1 { display: block; margin: 0; line-height: 1.2; }
+.datacenter-section-heading span { margin: 0; color: #60717d; }
+.datacenter-dashboard section > h2, .datacenter-section-heading h2 { font-size: 1.25rem; margin: 0 0 .85rem; }
+.datacenter-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.datacenter-summary-grid a { min-width: 0; min-height: 112px; background: #fff; border: 1px solid #cfd8dc; border-top: 4px solid #0d47a1; border-radius: 4px; padding: 1rem; color: inherit; display: flex; flex-direction: column; justify-content: space-between; gap: .5rem; text-decoration: none; }
+.datacenter-summary-grid a:hover, .datacenter-summary-grid a:focus-visible { border-color: #236db4; box-shadow: 0 5px 18px #0d47a129; }
+.datacenter-summary-grid span { color: #526879; }
+.datacenter-summary-grid strong { color: #0d47a1; font-size: 1.8rem; line-height: 1.1; }
+.datacenter-dashboard-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1.5rem; }
+.datacenter-dashboard-columns > section { min-width: 0; }
+#datacenter-sites { grid-column: 1; grid-row: 1; }
+.datacenter-racks-section { grid-column: 2; grid-row: 1; }
+.datacenter-section-heading { margin-bottom: .85rem; }
+.datacenter-section-heading h2 { margin: 0; }
+.datacenter-rack-list { display: grid; gap: .75rem; }
+.datacenter-rack-row, .datacenter-empty { min-width: 0; background: #fff; border: 1px solid #cfd8dc; border-radius: 4px; padding: 1rem; }
+.datacenter-rack-heading { display: flex; justify-content: space-between; gap: .75rem; align-items: start; }
+.datacenter-rack-heading h3 { font-size: 1.05rem; margin: 0; overflow-wrap: anywhere; }
+.datacenter-rack-heading span { color: #60717d; font-weight: normal; }
+.datacenter-rack-row p { margin: .6rem 0; color: #526879; }
+.datacenter-site-list { display: grid; gap: .75rem; }
+.datacenter-site-card { min-width: 0; background: #fff; border: 1px solid #cfd8dc; border-radius: 4px; padding: 1rem; }
+.datacenter-site-heading { display: flex; justify-content: space-between; align-items: start; gap: .75rem; }
+.datacenter-site-heading h3 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.datacenter-site-heading span { flex-shrink: 0; color: #0d47a1; font-weight: 600; }
+.datacenter-site-card p { margin: .55rem 0; color: #526879; }
+.datacenter-site-card dl { margin: .8rem 0 0; display: grid; gap: .45rem; }
+.datacenter-site-card dl div { display: flex; justify-content: space-between; gap: 1rem; }
+.datacenter-site-card dt { color: #60717d; font-weight: normal; }
+.datacenter-site-card dd { min-width: 0; margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.datacenter-occupancy { height: 9px; border-radius: 5px; background: #e6edf2; overflow: hidden; }
+.datacenter-occupancy span { display: block; height: 100%; background: #236db4; }
+.datacenter-dashboard-warning { padding: .8rem 1rem; background: #fff4dc; border-left: 4px solid #b88212; }
+@media (max-width: 900px) {
+  .datacenter-dashboard-columns { grid-template-columns: 1fr; }
+  #datacenter-sites, .datacenter-racks-section { grid-column: 1; grid-row: auto; }
+  #datacenter-sites { order: 1; }
+  .datacenter-racks-section { order: 2; }
+}
+@media (max-width: 520px) {
+  .datacenter-dashboard { padding: 1rem; }
+  .datacenter-dashboard-heading { align-items: stretch; }
+  .datacenter-section-heading { align-items: start; }
+  .datacenter-rack-heading { flex-wrap: wrap; }
+  .datacenter-site-heading { flex-wrap: wrap; }
+}

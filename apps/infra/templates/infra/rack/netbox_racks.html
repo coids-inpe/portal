@@ -62,9 +62,20 @@
         <p id="netbox-load-status" class="text-center" role="status" aria-live="polite"></p>
     {% endif %}
 </div>
+<dialog id="netbox-device-dialog" class="netbox-device-dialog" aria-labelledby="netbox-device-title">
+    <div class="netbox-device-heading">
+        <h2 id="netbox-device-title"></h2>
+    </div>
+    <div class="netbox-device-actions">
+        <button type="button" id="netbox-device-back" class="button" hidden>Voltar aos dispositivos</button>
+        <button type="button" id="netbox-device-close" class="button">Fechar</button>
+    </div>
+    <div id="netbox-device-content" aria-live="polite"></div>
+</dialog>
 {% endblock %}
 
 {% block extrajs %}
+<script src="{% static 'infra/js/netbox_devices.js' %}"></script>
 <script>
 (function () {
     const button = document.getElementById('netbox-load-more');

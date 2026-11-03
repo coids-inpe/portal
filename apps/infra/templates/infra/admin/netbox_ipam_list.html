@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'infra/css/netbox_ipam.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="netbox-ipam-page" id="content-main">
+    <header class="netbox-ipam-heading">
+        <h1>{{ title }}</h1>
+        {% if not netbox_error %}<span class="netbox-ipam-count">{{ rows|length }} registros</span>{% endif %}
+    </header>
+    <form method="get" class="netbox-ipam-search" role="search">
+        <label for="netbox-ipam-query">Buscar por nome ou endereço</label>
+        <div class="netbox-ipam-search-controls">
+            <input id="netbox-ipam-query" type="search" name="q" value="{{ query }}" class="form-control" placeholder="Nome ou endereço IP">
+            <button type="submit" class="button">Buscar</button>
+            {% if query %}<a href=".">Limpar</a>{% endif %}
+        </div>
+    </form>
+    {% if netbox_error %}
+        <p class="errornote" role="alert">Não foi possível consultar os dados. Tente novamente mais tarde.</p>
+    {% elif rows %}
+        <div class="netbox-ipam-table-wrap">
+            <table class="netbox-ipam-table">
+                <thead><tr>{% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr><th scope="row">{{ row.name }}</th><td>{{ row.address }}</td><td>{{ row.status }}</td><td>{{ row.description }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="netbox-ipam-empty" role="status">Nenhum registro encontrado.</p>
+    {% endif %}
+</div>
+{% endblock %}

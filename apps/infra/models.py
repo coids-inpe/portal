@@ -108,7 +108,7 @@ class Storage(Equipamento):
     objects = StorageManager()
     class Meta:
         verbose_name = "Storage"
-        verbose_name_plural = "Storages"
+        verbose_name_plural = "Storages | controllers"
 
     def __str__(self):
         return f"{self.marca} {self.modelo}"

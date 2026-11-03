@@ -1,0 +1,16 @@
+.netbox-ipam-page { padding: 1rem; }
+.netbox-ipam-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.netbox-ipam-heading h1 { margin: 0; }
+.netbox-ipam-count { background: #236db4; color: #fff; border-radius: 4px; padding: .5rem .75rem; font-weight: 600; }
+.netbox-ipam-search { background: #eef2f5; border: 1px solid #cfd8dc; border-radius: 4px; padding: 1rem; margin-bottom: 1.25rem; }
+.netbox-ipam-search label { display: block; font-weight: 600; margin-bottom: .35rem; }
+.netbox-ipam-search-controls { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.netbox-ipam-search input { flex: 1 1 260px; min-height: 38px; }
+.netbox-ipam-search .button { min-height: 38px; background: #0d47a1; color: #fff; }
+.netbox-ipam-table-wrap { overflow-x: auto; background: #fff; border: 1px solid #cfd8dc; border-radius: 4px; }
+.netbox-ipam-table { width: 100%; border-collapse: collapse; }
+.netbox-ipam-table th, .netbox-ipam-table td { padding: .8rem 1rem; text-align: left; border-bottom: 1px solid #dce3e8; overflow-wrap: anywhere; }
+.netbox-ipam-table thead { background: #0d47a1; color: #fff; }
+.netbox-ipam-table tbody tr:last-child > * { border-bottom: 0; }
+.netbox-ipam-table tbody tr:hover { background: #eef2f5; }
+.netbox-ipam-empty { padding: 1rem; background: #fff; border: 1px solid #cfd8dc; }

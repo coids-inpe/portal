@@ -1,6 +1,87 @@
-{% extends "admin/change_list.html" %}
-{% load i18n static %}
+{% extends "admin/base_site.html" %}
+{% load static %}
+
 {% block extrastyle %}
-    {{ block.super }}
-    <link rel="stylesheet" type="text/css" href="{% static 'infra/css/servidor.css' %}">
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'infra/css/servidor.css' %}">
+<link rel="stylesheet" href="{% static 'infra/css/netbox_storage.css' %}">
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<section class="netbox-storage-page" aria-labelledby="netbox-server-title">
+    <header class="netbox-storage-heading">
+        <h1 id="netbox-server-title">Servidores físicos</h1>
+        {% if not netbox_error %}<span class="netbox-storage-count">{{ netbox_count }} servidores</span>{% endif %}
+    </header>
+    <form method="get" class="netbox-storage-filters" role="search">
+        <div>
+            <label for="netbox-server-name">Nome</label>
+            <input id="netbox-server-name" type="search" name="netbox_q" value="{{ netbox_search_query }}" placeholder="Buscar servidor" class="form-control">
+        </div>
+        <div>
+            <label for="netbox-server-asset-tag">Patrimônio</label>
+            <input id="netbox-server-asset-tag" type="search" name="netbox_asset_tag" value="{{ netbox_asset_tag_query }}" placeholder="Buscar patrimônio" class="form-control">
+        </div>
+        <button type="submit" class="button">Buscar</button>
+        {% if netbox_search_query or netbox_asset_tag_query %}<a href="{% url 'admin:infra_servidor_changelist' %}">Limpar filtro</a>{% endif %}
+    </form>
+    {% if netbox_error %}
+        <p class="netbox-storage-message errornote" role="alert">Não foi possível consultar os servidores. Tente novamente mais tarde.</p>
+    {% elif netbox_servers %}
+        <div class="netbox-storage-grid">
+            {% for device in netbox_servers %}
+            <button type="button" class="netbox-storage-card" data-detail-url="{% url 'admin:infra_servidor_netbox_detail' device.id %}" aria-label="Ver informações de {{ device.name }}">
+                <div class="netbox-storage-card-header"><span class="netbox-storage-role">{{ device.role }}</span><h3>{{ device.name }}</h3></div>
+                <dl class="netbox-storage-facts">
+                    <dt>Modelo</dt><dd>{{ device.model }}</dd>
+                    <dt>Patrimônio</dt><dd>{{ device.asset_tag }}</dd>
+                    <dt>Site</dt><dd>{{ device.site }}</dd>
+                    <dt>Rack</dt><dd>{{ device.rack }}</dd>
+                    <dt>Status</dt><dd><span class="netbox-storage-status{% if device.status == 'Ativo' %} is-active{% endif %}">{{ device.status }}</span></dd>
+                </dl>
+            </button>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="netbox-storage-message" role="status">Nenhum servidor encontrado.</p>
+    {% endif %}
+    {% if not netbox_error and netbox_next_offset != None %}
+        <nav class="netbox-server-pagination" aria-label="Carregar mais servidores">
+            <a class="button" id="netbox-server-load-more" href="?netbox_q={{ netbox_search_query|urlencode }}&amp;netbox_asset_tag={{ netbox_asset_tag_query|urlencode }}&amp;netbox_offset={{ netbox_next_offset }}">Carregar mais</a>
+        </nav>
+    {% endif %}
+</section>
+<dialog id="netbox-storage-dialog" class="netbox-storage-dialog" aria-labelledby="netbox-storage-dialog-title">
+    <div class="netbox-storage-dialog-actions"><button type="button" id="netbox-storage-dialog-close" class="button">Fechar</button></div>
+    <h2 id="netbox-storage-dialog-title">Informações do servidor</h2>
+    <div id="netbox-storage-dialog-content" aria-live="polite"></div>
+</dialog>
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+<script src="{% static 'infra/js/netbox_storage.js' %}" defer></script>
+<script>
+document.addEventListener("click", async (event) => {
+    const link = event.target.closest("#netbox-server-load-more");
+    if (!link) return;
+    event.preventDefault();
+    link.textContent = "Carregando...";
+    link.setAttribute("aria-disabled", "true");
+    try {
+        const response = await fetch(link.href, { credentials: "same-origin" });
+        if (!response.ok) throw new Error();
+        const page = new DOMParser().parseFromString(await response.text(), "text/html");
+        document.querySelector(".netbox-storage-grid").append(...page.querySelectorAll(".netbox-storage-grid > .netbox-storage-card"));
+        const nextNav = page.querySelector(".netbox-server-pagination");
+        const nav = link.closest(".netbox-server-pagination");
+        nextNav ? nav.replaceWith(nextNav) : nav.remove();
+    } catch {
+        link.textContent = "Erro ao carregar. Tentar novamente";
+        link.removeAttribute("aria-disabled");
+    }
+});
+</script>
 {% endblock %}

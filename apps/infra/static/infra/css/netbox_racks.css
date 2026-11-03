@@ -33,6 +33,93 @@
 .netbox-rack-card {
   border: 1px solid #cfd8dc;
   min-width: 0;
+  cursor: pointer;
+}
+.netbox-rack-card:focus-visible {
+  outline: 3px solid #236db4;
+  outline-offset: 3px;
+}
+.netbox-rack-card:hover {
+  box-shadow: 0 4px 14px #1b3c5826;
+}
+
+.netbox-device-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  width: min(620px, calc(100vw - 2rem));
+  max-height: min(80vh, 760px);
+  overflow: auto;
+  border: 1px solid #9fb2c1;
+  border-radius: 6px;
+  padding: 1.25rem;
+  box-shadow: 0 12px 40px #17283955;
+}
+.netbox-device-dialog::backdrop {
+  background: #11223199;
+}
+.netbox-device-heading {
+  margin-bottom: 1rem;
+}
+.netbox-device-heading h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+.netbox-device-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.netbox-device-actions #netbox-device-close {
+  margin-left: auto;
+}
+.netbox-device-dialog .button {
+  background: #236db4;
+  color: white;
+  border: 0;
+  border-radius: 4px;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+}
+.netbox-device-dialog .button:focus-visible {
+  outline: 3px solid #172839;
+  outline-offset: 2px;
+}
+.netbox-device-list {
+  display: grid;
+  gap: 0.5rem;
+}
+.netbox-device-item {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  background: #eef2f5;
+  border: 1px solid #cfd8dc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.netbox-device-item:hover,
+.netbox-device-item:focus-visible {
+  border-color: #236db4;
+}
+.netbox-device-details {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 2fr;
+  gap: 0.5rem 1rem;
+}
+.netbox-device-details dt {
+  color: #526879;
+}
+.netbox-device-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 .netbox-rack-card .card-header {
   min-height: 64px;

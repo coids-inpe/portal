@@ -3,6 +3,10 @@ from apps.infra.utils.xen_crud import XenCrud
 from secrets import choice
 
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.http import Http404, JsonResponse
+from django.urls import path
+from django.template.response import TemplateResponse
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 from apps.core.utils.freeipa import FreeIPA
@@ -18,6 +22,9 @@ from apps.infra.models import (AmbienteVirtual,
                                StorageAreaGrupoTrabalho, Supercomputador, TemplateComando, TemplateHostnameIP, TemplateVM)
 from apps.infra.utils.freeipa_location import Automount
 from apps.infra.utils.history import HistoryInfra
+from apps.infra.services.netbox_storage import get_storage_detail, get_storage_inventory
+from apps.infra.services.netbox_server import get_server_detail, get_server_inventory
+from apps.infra.utils.netbox import get_ip_addresses, get_prefixes
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 
@@ -173,6 +180,21 @@ class HostnameIPAdmin(admin.ModelAdmin):
     list_display = ("hostname", "ip", "reservado")
     form = HostnameIPForm
 
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        records = get_ip_addresses()
+        query = request.GET.get("q", "").strip()
+        rows = [{"name": item.get("dns_name") or "—", "address": item.get("address") or "—",
+                 "status": (item.get("status") or {}).get("label") or "—",
+                 "description": item.get("description") or "—"} for item in (records or [])]
+        if query:
+            rows = [row for row in rows if query.casefold() in row["name"].casefold() or query.casefold() in row["address"].casefold()]
+        context = {**self.admin_site.each_context(request), "title": "Hostnames e IPs", "opts": self.model._meta,
+                   "rows": rows, "query": query, "netbox_error": records is None,
+                   "columns": ("Hostname", "Endereço IP", "Status", "Descrição")}
+        return TemplateResponse(request, "infra/admin/netbox_ipam_list.html", context, status=502 if records is None else 200)
+
 
 @admin.register(Supercomputador)
 class SupercomputadorAdmin(admin.ModelAdmin):
@@ -189,6 +211,44 @@ class StorageAdmin(admin.ModelAdmin):
     list_display = ("marca", "modelo", "descricao", "capacidade",)
     exclude = ("consumo", "grupos_acesso", "patrimonio", "serie",  "tipo_uso", "tipo", "status", "grupos",)
     inlines = (StorageAreaInLine, OcorrenciaInLine)
+
+    def get_urls(self):
+        return [
+            path("netbox/<int:device_id>/", self.admin_site.admin_view(self.netbox_detail_view), name="infra_storage_netbox_detail"),
+        ] + super().get_urls()
+
+    def netbox_detail_view(self, request, device_id):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        device = get_storage_detail(device_id)
+        if device == {}:
+            raise Http404("Dispositivo não é um storage ou controladora")
+        if device is None:
+            return JsonResponse({"error": "Não foi possível consultar o NetBox."}, status=502)
+        return JsonResponse({"device": device})
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        inventory = get_storage_inventory()
+        search_query = request.GET.get("q", "").strip()
+        selected_role = request.GET.get("role", "")
+        if selected_role not in {"controller", "storage"}:
+            selected_role = ""
+        filtered_inventory = [device for device in (inventory or [])
+                              if (not selected_role or device["role_key"] == selected_role
+                                  or (selected_role == "storage" and device["role_key"] == "disk-array"))
+                              and (not search_query or search_query.casefold() in device["name"].casefold())]
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Storages | controllers",
+            "opts": self.model._meta,
+            "inventory": filtered_inventory,
+            "netbox_error": inventory is None,
+            "search_query": search_query,
+            "selected_role": selected_role,
+        }
+        return TemplateResponse(request, "infra/admin/netbox_storage_list.html", context, status=502 if inventory is None else 200)
 
 class TenantsFilter(admin.SimpleListFilter):
     title = _('Tenant')
@@ -247,6 +307,42 @@ class ServidorAdmin(admin.ModelAdmin):
     readonly_fields = ("status","conta")
     form = ServidorForm 
     inlines = [HostnameIPServidorInLine,]
+
+    def get_urls(self):
+        return [
+            path("netbox/<int:device_id>/", self.admin_site.admin_view(self.netbox_detail_view), name="infra_servidor_netbox_detail"),
+        ] + super().get_urls()
+
+    def netbox_detail_view(self, request, device_id):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        device = get_server_detail(device_id)
+        if device == {}:
+            raise Http404("Dispositivo não é um servidor")
+        if device is None:
+            return JsonResponse({"error": "Não foi possível consultar os dados."}, status=502)
+        return JsonResponse({"device": device})
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        search_query = request.GET.get("netbox_q", "").strip()
+        asset_tag_query = request.GET.get("netbox_asset_tag", "").strip()
+        try:
+            offset = max(0, int(request.GET.get("netbox_offset", "0")))
+        except ValueError:
+            offset = 0
+        inventory = get_server_inventory(limit=15, offset=offset, search=search_query, asset_tag=asset_tag_query)
+        context = {**self.admin_site.each_context(request), **(extra_context or {}),
+                   "title": "Servidores", "opts": self.model._meta,
+                   "netbox_servers": inventory["devices"] if inventory else [],
+                   "netbox_count": inventory["count"] if inventory else None,
+                   "netbox_next_offset": inventory["next_offset"] if inventory else None,
+                   "netbox_previous_offset": inventory["previous_offset"] if inventory else None,
+                   "netbox_error": inventory is None, "netbox_search_query": search_query,
+                   "netbox_asset_tag_query": asset_tag_query}
+        return TemplateResponse(request, self.change_list_template, context,
+                                status=502 if inventory is None else 200)
     
     #Listar os grupos um em cada linha
     def grupo(self, obj):
@@ -437,5 +533,21 @@ class AmbienteVirtualAdmin(admin.ModelAdmin):
 class RedeAdmin(admin.ModelAdmin):
     search_fields = ["rede", "ip"]
     list_display = ("rede", "ip", "prioridade_montagem")
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        records = get_prefixes()
+        query = request.GET.get("q", "").strip()
+        rows = [{"name": item.get("description") or "—", "address": item.get("prefix") or "—",
+                 "status": (item.get("status") or {}).get("label") or "—",
+                 "description": ((item.get("scope") or item.get("site") or {}).get("name") or "—")}
+                for item in (records or [])]
+        if query:
+            rows = [row for row in rows if query.casefold() in row["name"].casefold() or query.casefold() in row["address"].casefold()]
+        context = {**self.admin_site.each_context(request), "title": "Redes", "opts": self.model._meta,
+                   "rows": rows, "query": query, "netbox_error": records is None,
+                   "columns": ("Descrição", "Prefixo", "Status", "Local")}
+        return TemplateResponse(request, "infra/admin/netbox_ipam_list.html", context, status=502 if records is None else 200)
 
 

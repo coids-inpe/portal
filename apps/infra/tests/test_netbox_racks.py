@@ -18,11 +18,14 @@ def test_rack_inventory_is_owned_by_netbox():
 def test_datacenter_renders_its_own_page():
     from apps.infra.views import DataCenterView
     request = RequestFactory().get(reverse("infra:datacenter"))
-    request.user = type("User", (), {"is_authenticated": True})()
-    response = DataCenterView.as_view()(request)
+    request.user = Mock(is_authenticated=True)
+    request.user.has_perm.return_value = True
+    with patch("apps.infra.views.build_dashboard", return_value={"totals": {}, "sites": [], "rack_highlights": [], "data_unavailable": False}):
+        response = DataCenterView.as_view()(request)
     response.render()
     assert response.status_code == 200
-    assert b"Data Center" in response.content
+    assert b"Datacenter" in response.content
+    assert response.content.count(b">Datacenter</h1>") == 1
 
 
 def test_netbox_racks_fetches_all_pages():
@@ -57,6 +60,36 @@ def test_netbox_racks_requires_login():
     response = GetNetboxRacksView.as_view()(request)
 
     assert response.status_code == 302
+
+
+def test_rack_card_opens_device_list():
+    request = RequestFactory().get(reverse("infra:netbox_racks"))
+    request.user = Mock(is_authenticated=True)
+    rack = {"id": 7, "name": "R01", "u_height": 1}
+    with patch("apps.infra.services.rack_visualization.get_rack_data", return_value=[rack]), \
+         patch("apps.infra.services.rack_visualization.get_rack_elevation", return_value=[]):
+        response = GetNetboxRacksView.as_view()(request)
+    response.render()
+    assert b'data-devices-url="/infra/datacenter/netbox/racks/7/devices/"' in response.content
+    assert b'netbox-device-dialog' in response.content
+
+
+def test_rack_devices_and_device_details():
+    from django.urls import resolve
+    user = Mock(is_authenticated=True)
+    device = {"id": 11, "name": "Servidor A", "rack": {"id": 7},
+              "status": {"value": "active"}, "device_role": {"name": "Servidor"}}
+    with patch("apps.infra.views.get_rack_devices", return_value=[device]), \
+         patch("apps.infra.views.get_device_data", return_value=device):
+        list_url = reverse("infra:rack_devices", args=[7])
+        detail_url = reverse("infra:rack_device_detail", args=[7, 11])
+        list_request = RequestFactory().get(list_url)
+        detail_request = RequestFactory().get(detail_url)
+        list_request.user = detail_request.user = user
+        listing = resolve(list_url).func(list_request, rack_id=7)
+        detail = resolve(detail_url).func(detail_request, rack_id=7, device_id=11)
+    assert json.loads(listing.content)["devices"][0]["name"] == "Servidor A"
+    assert json.loads(detail.content)["device"]["status"] == "Ativo"
 
 
 def test_netbox_racks_shows_front_occupancy_only():
@@ -106,6 +139,14 @@ def test_visualization_service_builds_occupancy_without_a_request():
         {"number": 2, "front": "full"},
         {"number": 1, "front": "full"},
     ]
+
+
+def test_rack_status_active_is_translated():
+    rack = {"id": 7, "name": "R01", "u_height": 1,
+            "status": {"value": "active", "label": "Active"}}
+    with patch("apps.infra.services.rack_visualization.get_rack_elevation", return_value=[]):
+        card = RackVisualizationService().build_card(rack)
+    assert card["status"] == "Ativo"
 
 
 def test_netbox_racks_loads_twelve_at_a_time():
@@ -204,13 +245,16 @@ def test_vm_creation_shows_service_error_when_xen_is_down():
     assert b"Xen indispon" in response.content
 
 
-def test_netbox_elevation_failure_shows_service_error():
+def test_netbox_elevation_failure_keeps_rack_list_visible():
     request = RequestFactory().get(reverse("infra:netbox_racks"))
     request.user = Mock(is_authenticated=True)
     with patch("apps.infra.services.rack_visualization.get_rack_data", return_value=[{"id": 1, "name": "R1", "u_height": 2}]), \
          patch("apps.infra.services.rack_visualization.get_rack_elevation", return_value=None):
         response = GetNetboxRacksView.as_view()(request)
-    assert response.status_code == 503
+    response.render()
+    assert response.status_code == 200
+    assert b"R1" in response.content
+    assert b"Eleva\xc3\xa7\xc3\xa3o indispon\xc3\xadvel" in response.content
 
 
 def test_freeipa_failure_shows_service_error():

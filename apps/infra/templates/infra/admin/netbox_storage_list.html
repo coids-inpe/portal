@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'infra/css/netbox_storage.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="netbox-storage-page">
+    <header class="netbox-storage-heading">
+        <div>
+            <h1>Storages | controllers</h1>
+        </div>
+        {% if not netbox_error %}<span class="netbox-storage-count">{{ inventory|length }} dispositivos</span>{% endif %}
+    </header>
+    <form method="get" class="netbox-storage-filters" role="search">
+        <div>
+            <label for="storage-name">Nome</label>
+            <input id="storage-name" type="search" name="q" value="{{ search_query }}" placeholder="Buscar dispositivo" class="form-control">
+        </div>
+        <div>
+            <label for="storage-role">Função</label>
+            <select id="storage-role" name="role" class="form-control">
+                <option value="">Todas</option>
+                <option value="controller"{% if selected_role == 'controller' %} selected{% endif %}>Controller</option>
+                <option value="storage"{% if selected_role == 'storage' %} selected{% endif %}>Storage</option>
+            </select>
+        </div>
+        <button type="submit" class="button">Buscar</button>
+        {% if search_query or selected_role %}<a href="{% url 'admin:infra_storage_changelist' %}">Limpar filtros</a>{% endif %}
+    </form>
+    {% if netbox_error %}
+        <p class="netbox-storage-message errornote" role="alert">Não foi possível consultar o NetBox. Tente novamente mais tarde.</p>
+    {% elif inventory %}
+        <div class="netbox-storage-grid">
+            {% for device in inventory %}
+            <button type="button" class="netbox-storage-card" data-detail-url="{% url 'admin:infra_storage_netbox_detail' device.id %}" aria-label="Ver informações de {{ device.name }}">
+                <div class="netbox-storage-card-header">
+                    <span class="netbox-storage-role">{{ device.role }}</span>
+                    <h2>{{ device.name }}</h2>
+                </div>
+                <dl class="netbox-storage-facts">
+                    <dt>Modelo</dt><dd>{{ device.model }}</dd>
+                    <dt>Site</dt><dd>{{ device.site }}</dd>
+                    <dt>Rack</dt><dd>{{ device.rack }}</dd>
+                    <dt>Status</dt><dd><span class="netbox-storage-status{% if device.status == 'Ativo' %} is-active{% endif %}">{{ device.status }}</span></dd>
+                </dl>
+            </button>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="netbox-storage-message" role="status">{% if search_query or selected_role %}Nenhum storage ou controladora corresponde aos filtros.{% else %}Nenhum storage ou controladora encontrado no NetBox.{% endif %}</p>
+    {% endif %}
+</div>
+<dialog id="netbox-storage-dialog" class="netbox-storage-dialog" aria-labelledby="netbox-storage-dialog-title">
+    <div class="netbox-storage-dialog-actions">
+        <button type="button" id="netbox-storage-dialog-close" class="button">Fechar</button>
+    </div>
+    <h2 id="netbox-storage-dialog-title">Informações do dispositivo</h2>
+    <div id="netbox-storage-dialog-content" aria-live="polite"></div>
+</dialog>
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+<script src="{% static 'infra/js/netbox_storage.js' %}" defer></script>
+{% endblock %}

@@ -1,29 +1,29 @@
-
-.column-montagem, .field-montagem {
-    width: 100px;
-    text-align: center;
-    vertical-align: middle!important;
+.column-montagem,
+.field-montagem {
+  width: 100px;
+  text-align: center;
+  vertical-align: middle !important;
 }
 
 .column-prioridade {
-    width: 90px;
+  width: 90px;
 }
 .column-configuracao {
-    width: 150px;
+  width: 150px;
 }
 
 .column-descricao {
-    min-width: 200px;
+  min-width: 200px;
 }
 
 .column-tipo {
-    min-width: 120px;
+  min-width: 120px;
 }
 
 .column-nome {
-    min-width: 100px;
+  min-width: 100px;
 }
 
 .column-responsavel {
-    min-width: 120px;
+  min-width: 120px;
 }

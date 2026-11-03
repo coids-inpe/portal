@@ -23,6 +23,8 @@ from apps.infra.models import (Equipamento, EquipamentoParte,
 from apps.infra.utils.freeipa_location import Automount
 from apps.infra.utils.history import HistoryInfra
 from apps.infra.services.rack_visualization import RackVisualizationService
+from apps.infra.services.datacenter_dashboard import build_dashboard
+from apps.infra.utils.netbox import get_rack_devices, get_device_data
 from apps.infra.service_errors import service_unavailable
 from apps.infra.utils.xen_crud import XenCrud
 from apps.monitoramento.models.nagios import NagiosServicos
@@ -33,6 +35,12 @@ from reportlab.lib.pagesizes import landscape, A4
 
 class DataCenterView(LoginRequiredMixin, TemplateView):
     template_name = "infra/datacenter/datacenter.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(build_dashboard())
+        context["title"] = "Datacenter"
+        return context
 
 
 class CriarServidorLdapView(LoginRequiredMixin, PermissionRequiredMixin, RedirectView):
@@ -118,7 +126,7 @@ class CriarVmView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         context["original"] = get_object_or_404(Servidor, id=self.kwargs['pk'])
         context["template"] = 0
         return context
-    
+
     def form_valid(self, form):
         vm = get_object_or_404(Servidor, id=form.cleaned_data['servidor'])
         self.template = form.cleaned_data['template']
@@ -143,7 +151,7 @@ class CriarVmProgressView(LoginRequiredMixin, TemplateView):
         context["opts"] = Servidor._meta
         context["original"] = get_object_or_404(Servidor, id=self.kwargs['pk'])
         context["template"] = get_object_or_404(TemplateVM, id=self.kwargs['template_id'])
-        context["task_id"] = self.kwargs['task_id'] 
+        context["task_id"] = self.kwargs['task_id']
         return context
 
 
@@ -358,7 +366,7 @@ class GetNetboxRacksView(LoginRequiredMixin, TemplateView):
     page_size = 12
 
     def get(self, request: HttpRequest, *args, **kwargs):
-    
+
         context = self.get_context_data(**kwargs)
 
         if context["netbox_error"] and request.GET.get("partial") != "1":
@@ -391,7 +399,7 @@ class GetNetboxRacksView(LoginRequiredMixin, TemplateView):
 
 
     def get_context_data(self, **kwargs):
-        
+
         # Mantém os dados que a TemplateView já coloca no contexto.
         context = super().get_context_data(**kwargs)
         context["title"] = "Racks do NetBox"
@@ -407,3 +415,56 @@ class GetNetboxRacksView(LoginRequiredMixin, TemplateView):
 
         # O template usa essas chaves para desenhar a página.
         return context
+
+
+def _netbox_label(value):
+    if isinstance(value, dict):
+        return value.get("label") or value.get("name") or value.get("value") or "—"
+    return value or "—"
+
+
+class RackDevicesView(LoginRequiredMixin, TemplateView):
+    def get(self, request, rack_id):
+
+        devices = get_rack_devices(rack_id)
+
+        if devices is None:
+
+            return JsonResponse({"error": "Não foi possível consultar o NetBox."}, status=502)
+
+        return JsonResponse({
+            "devices": [
+                {
+                    "id": device["id"], "name": device.get("name") or "Sem nome",
+                    "position": device.get("position") or "—",
+                    "status": "Ativo" if _netbox_label(device.get("status")).lower() in ("active", "ativo") else "Inativo",
+                    "role": _netbox_label(device.get("role") or device.get("device_role"))}
+                    for device in devices if device.get("id") is not None
+        ]})
+
+
+class RackDeviceDetailView(LoginRequiredMixin, TemplateView):
+
+    def get(self, request, rack_id, device_id):
+        device = get_device_data(device_id)
+
+        if device is None:
+            return JsonResponse({"error": "Não foi possível consultar o NetBox."}, status=502)
+
+        if (device.get("rack") or {}).get("id") != rack_id:
+            return JsonResponse({"error": "Dispositivo não encontrado neste rack."}, status=404)
+
+        device_type = device.get("device_type") or {}
+
+        ip = device.get("primary_ip") or device.get("primary_ip4") or {}
+
+        return JsonResponse({"device": {
+            "name": device.get("name") or "Sem nome",
+            "status": "Ativo" if _netbox_label(device.get("status")).lower() in ("active", "ativo") else "Inativo",
+            "role": _netbox_label(device.get("role") or device.get("device_role")),
+            "manufacturer": _netbox_label(device_type.get("manufacturer")),
+            "model": _netbox_label(device_type.get("model")),
+            "serial": device.get("serial") or "—", "asset_tag": device.get("asset_tag") or "—",
+            "position": device.get("position") or "—", "face": _netbox_label(device.get("face")),
+            "ip": ip.get("address") or "—", "description": device.get("description") or "—",
+        }})

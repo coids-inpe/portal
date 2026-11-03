@@ -15,7 +15,6 @@ class RackVisualizationService:
             "search_query": search_query.strip(),
             "selected_group": selected_group,
         }
-
         racks_from_netbox = get_rack_data()
        
         if racks_from_netbox is None:
@@ -65,9 +64,6 @@ class RackVisualizationService:
 
         for rack in batch:
             card = self.build_card(rack)
-            if card["occupied_units"] is None:
-                page["netbox_error"] = True
-                return page
             page["racks"].append(card)
 
         return page
@@ -151,6 +147,12 @@ class RackVisualizationService:
         location = rack.get("location") or {}
         group = rack.get("group") or {}
         status = rack.get("status") or {}
+        status_value = status.get("value") or status.get("label", "")
+        status_label = {
+            "active": "Ativo",
+            "inactive": "Inativo",
+            "offline": "Inativo",
+        }.get(status_value.casefold(), status.get("label", "—"))
 
         return {
             "id": rack["id"],
@@ -158,7 +160,7 @@ class RackVisualizationService:
             "site": site.get("name", "—"),
             "location": location.get("name", "—"),
             "group": group.get("name", "—"),
-            "status": status.get("label", "—"),
+            "status": status_label,
             "height": height,
             "device_count": rack.get("device_count", 0),
             "occupied_units": occupied_units,

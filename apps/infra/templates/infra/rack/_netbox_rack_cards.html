@@ -1,6 +1,9 @@
 {% for rack in racks %}
 <article
   class="card netbox-rack-card"
+  role="button" tabindex="0"
+  data-devices-url="{% url 'infra:rack_devices' rack.id %}"
+  aria-haspopup="dialog"
   aria-label="Rack {{ rack.name }}: {{ rack.occupied_units|default_if_none:'ocupação indisponível' }} de {{ rack.height }} U ocupadas"
 >
   <div class="card-header blue darken-4 text-white">

@@ -1,2 +1,64 @@
 
-<h1>Data Center</h1>
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'infra/css/datacenter_dashboard.css' %}">
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<main id="content-main" class="datacenter-dashboard">
+    <header class="datacenter-dashboard-heading">
+        <div><h1>Datacenter</h1></div>
+    </header>
+    {% if data_unavailable %}<p class="datacenter-dashboard-warning" role="status">Algumas informações estão indisponíveis no momento.</p>{% endif %}
+    <section aria-labelledby="datacenter-summary-title">
+        <h2 id="datacenter-summary-title">Resumo</h2>
+        <div class="datacenter-summary-grid">
+            <a href="{% url 'infra:netbox_racks' %}"><span>Racks</span><strong>{{ totals.racks|default_if_none:"—" }}</strong></a>
+            <a href="{% url 'infra:netbox_racks' %}"><span>Dispositivos em racks</span><strong>{{ totals.devices|default_if_none:"—" }}</strong></a>
+            <a href="{% url 'admin:infra_servidor_changelist' %}"><span>Servidores</span><strong>{{ totals.servers|default_if_none:"—" }}</strong></a>
+            <a href="{% url 'admin:infra_storage_changelist' %}"><span>Storages</span><strong>{{ totals.storages|default_if_none:"—" }}</strong></a>
+            <a href="{% url 'admin:infra_hostnameip_changelist' %}"><span>Endereços IP</span><strong>{{ totals.ips|default_if_none:"—" }}</strong></a>
+            <a href="{% url 'admin:infra_rede_changelist' %}"><span>Redes</span><strong>{{ totals.networks|default_if_none:"—" }}</strong></a>
+        </div>
+    </section>
+    <div class="datacenter-dashboard-columns">
+        <section class="datacenter-racks-section" aria-labelledby="datacenter-racks-title">
+            <div class="datacenter-section-heading"><h2 id="datacenter-racks-title">Racks em destaque</h2><span>Até 5 com mais dispositivos</span></div>
+            {% if rack_highlights %}
+                <div class="datacenter-rack-list">
+                    {% for rack in rack_highlights %}
+                    <article class="datacenter-rack-row">
+                        <div class="datacenter-rack-heading"><h3>{{ rack.name }}</h3><span>{{ rack.site }}</span></div>
+                        <p>{{ rack.devices }} dispositivos · {% if rack.percent != None %}{{ rack.occupied }} de {{ rack.height }} U ocupadas{% else %}Ocupação indisponível{% endif %}</p>
+                        {% if rack.percent != None %}<div class="datacenter-occupancy" role="img" aria-label="{{ rack.percent }}% de ocupação"><span style="width: {{ rack.percent }}%"></span></div>{% endif %}
+                    </article>
+                    {% endfor %}
+                </div>
+            {% elif not data_unavailable %}<p class="datacenter-empty">Nenhum rack cadastrado.</p>{% endif %}
+        </section>
+    <section id="datacenter-sites" aria-labelledby="datacenter-sites-title">
+        <div class="datacenter-section-heading"><h2 id="datacenter-sites-title">Sites</h2><span>Locais cadastrados</span></div>
+        {% if sites %}
+            <div class="datacenter-site-list">
+                {% for site in sites %}
+                <article class="datacenter-site-card">
+                    <div class="datacenter-site-heading"><h3>{{ site.name }}</h3><span>{{ site.status }}</span></div>
+                    {% if site.description %}<p>{{ site.description }}</p>{% endif %}
+                    <dl>
+                        <div><dt>Região</dt><dd>{{ site.region }}</dd></div>
+                        <div><dt>Racks</dt><dd>{{ site.rack_count|default_if_none:"—" }}</dd></div>
+                        <div><dt>Dispositivos em racks</dt><dd>{{ site.device_count|default_if_none:"—" }}</dd></div>
+                    </dl>
+                </article>
+                {% endfor %}
+            </div>
+        {% elif not sites_error %}<p class="datacenter-empty">Nenhum site cadastrado.</p>{% endif %}
+    </section>
+    </div>
+</main>
+{% endblock %}
