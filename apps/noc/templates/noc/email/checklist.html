@@ -25,14 +25,14 @@
     <br>
     <p><b>Novas Ocorrências de Equipamento</b></p>
     {% for ocorrencia in checklist.ocorrencia_checklist.all %}
-        <p> - {{ocorrencia.equipamento}} <b>/</b> {{ocorrencia.descricao}} <b>/</b> {{ocorrencia.status}}<p>
+        <p> - {% include "noc/equipamento.html" %} <b>/</b> {{ocorrencia.descricao}} <b>/</b> {{ocorrencia.status}}<p>
     {% empty %}
         <p> - <p>
     {% endfor %}
     <br>
     <p><b>Ocorrências abertas</b></p>
     {% for ocorrencia in ocorrencias_abertas %}
-        <p> - {{ocorrencia.equipamento}} <b>/</b> {{ocorrencia.descricao}} <b>/</b> {{ocorrencia.status}}<p>
+        <p> - {% include "noc/equipamento.html" %} <b>/</b> {{ocorrencia.descricao}} <b>/</b> {{ocorrencia.status}}<p>
     {% empty %}
         <p> - <p>
     {% endfor %}

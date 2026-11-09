@@ -45,8 +45,14 @@ LOGGING = {
     "loggers": {"django": {"handlers": ["file"], "level": "INFO", "propagate": True,}, "django.db.backends": {"handlers": ["file"], "level": "DEBUG",},},
 }
 
+# Cookies com nome próprio: no localhost o navegador não separa cookies por porta,
+# e o NetBox local (que também usa csrftoken/sessionid) sobrescrevia os do portal.
+CSRF_COOKIE_NAME = "portal_csrftoken"
+SESSION_COOKIE_NAME = "portal_sessionid"
+
 AUTHENTICATION_BACKENDS = [
-    'freeipa.auth.backends.AuthenticationBackend',
+    # TEMPORÁRIO: login pelo FreeIPA desativado no desenvolvimento local (sem IPA_AUTH_SERVER). Não commitar.
+    # 'freeipa.auth.backends.AuthenticationBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 

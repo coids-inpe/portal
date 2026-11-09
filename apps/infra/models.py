@@ -438,6 +438,9 @@ class Ocorrencia(models.Model):
     descricao = models.CharField("Descrição", max_length=255, blank=True, null=True)
     data = models.DateTimeField("data", auto_now=True, blank=True, null=True)
     equipamento = models.ForeignKey( "infra.Equipamento", verbose_name="Equipamento", on_delete=models.CASCADE,  blank=True, null=True, )
+    netbox_object_type = models.CharField(max_length=50, blank=True, default="", editable=False)
+    netbox_object_id = models.PositiveBigIntegerField(blank=True, null=True, editable=False)
+    equipamento_nome = models.CharField("Equipamento registrado", max_length=255, blank=True, default="", editable=False)
     status = models.CharField("status", max_length=255, blank=True, null=True, default="Analisando")
     checklist =  models.ForeignKey("noc.Checklist", null=True, blank=True,related_name="ocorrencia_checklist", on_delete=models.CASCADE)
     objects = OcorrenciaServicoManager()
@@ -450,6 +453,32 @@ class Ocorrencia(models.Model):
 
     def __str__(self):
         return f"{self.ocorrencia} {self.descricao}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        external = bool(self.netbox_object_type or self.netbox_object_id or self.equipamento_nome)
+        if external and (
+            self.netbox_object_type != "dcim.device"
+            or not self.netbox_object_id or self.netbox_object_id < 1
+            or not self.equipamento_nome.strip() or self.equipamento_id
+        ):
+            raise ValidationError("A ocorrência deve ter uma única referência completa de equipamento.")
+
+    @property
+    def equipamento_identificacao(self):
+        return self.equipamento_nome or (str(self.equipamento) if self.equipamento_id else "Sem equipamento")
+
+    @property
+    def equipamento_url(self):
+        from urllib.parse import urlsplit
+        from apps.infra.utils.netbox import NETBOX_URL
+
+        base = (NETBOX_URL or "").rstrip("/")
+        if self.netbox_object_type == "dcim.device" and self.netbox_object_id and urlsplit(base).scheme in {"http", "https"}:
+            return f"{base}/dcim/devices/{self.netbox_object_id}/"
+        return ""
 
     def get_status(self):
         if self.ocorrencia is None:

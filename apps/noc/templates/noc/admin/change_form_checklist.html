@@ -19,7 +19,7 @@
             <div class="col-4 p-1"><b>Descrição</b></div>
             <div class="col-1 p-1"><b>Status</b></div>
             {% for ocorrencia in ocorrencias_abertas %}
-                <div class="col-6 p-1 ">{{ ocorrencia.equipamento }}</div>
+                <div class="col-6 p-1 ">{% include "noc/equipamento.html" %}</div>
                 <div class="col-4 p-1 ">{{ ocorrencia.descricao }}</div>
                 <div class="col-1 p-1">{{ ocorrencia.status|default_if_none:""  }}</div>
             {% empty %}

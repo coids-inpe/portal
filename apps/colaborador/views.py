@@ -251,8 +251,8 @@ class ResponsavelView(ViewContextMixin, LoginRequiredMixin, PermissionRequiredMi
     def get_context_data(self, **kwargs):
         responsavel = self.request.user
         responsavel_grupos_acesso = [GrupoAcesso.id for GrupoAcesso in GrupoAcesso.objects.filter(grupo_trabalho__responsavelgrupotrabalho__responsavel_id=responsavel.id, grupo_trabalho__confirmacao=1)]
-        colaborador_grupo_acesso_solicitacoes = ColaboradorGrupoAcesso.objects.filter(grupo_acesso_id__in=responsavel_grupos_acesso, aprovacao=0).order_by("colaborador__name")
-        colaborador_grupo_acesso_aprovados =  ColaboradorGrupoAcesso.objects.filter(grupo_acesso_id__in=responsavel_grupos_acesso, aprovacao=1).order_by("colaborador__name")
+        colaborador_grupo_acesso_solicitacoes = ColaboradorGrupoAcesso.objects.filter(grupo_acesso_id__in=responsavel_grupos_acesso, aprovacao=0).order_by("colaborador__first_name", "colaborador__last_name")
+        colaborador_grupo_acesso_aprovados =  ColaboradorGrupoAcesso.objects.filter(grupo_acesso_id__in=responsavel_grupos_acesso, aprovacao=1).order_by("colaborador__first_name", "colaborador__last_name")
         context = super(ResponsavelView, self).get_context_data(**kwargs)
         context["solicitacoes"] = colaborador_grupo_acesso_solicitacoes
         context["aprovados"] = colaborador_grupo_acesso_aprovados

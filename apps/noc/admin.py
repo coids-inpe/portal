@@ -1,5 +1,7 @@
 from django.contrib import admin
-from apps.infra.admin import Ocorrencia, OcorrenciaChecklistInLine
+from django.utils.html import format_html
+from apps.infra.models import Ocorrencia
+from apps.noc.forms import NetBoxOcorrenciaForm
 from apps.noc.forms import (ChechlistForm, ChechlistResponsaveisInlineForm,
                             ChecklistServidorNagiosServicoInlineForm)
 from apps.noc.models import (Checklist, ChecklistEmail, ChecklistResponsaveis,
@@ -12,6 +14,21 @@ class ServidorNagiosInLine(admin.TabularInline):
     verbose_name = "Alerta no Nagios"
     verbose_name_plural =  "Alertas no Nagios"
     form = ChecklistServidorNagiosServicoInlineForm
+
+
+class OcorrenciaNetBoxInline(admin.TabularInline):
+    model = Ocorrencia
+    form = NetBoxOcorrenciaForm
+    fields = ("netbox_device", "descricao")
+    extra = 0
+    verbose_name = "Ocorrência de Equipamento"
+    verbose_name_plural = "Ocorrências de Equipamento"
+
+    @admin.display(description="Equipamento (NetBox)")
+    def netbox_device(self, obj):
+        if obj.equipamento_url:
+            return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>', obj.equipamento_url, obj.equipamento_identificacao)
+        return obj.equipamento_identificacao
 
 class ResponsaveisInLine(admin.TabularInline):
     model = ChecklistResponsaveis
@@ -29,7 +46,7 @@ class ChecklistAdmin(admin.ModelAdmin):
     list_display = ["turno", "criado"]
     readonly_fields = ["criado", ]
     form = ChechlistForm
-    inlines = [ResponsaveisInLine, ServidorNagiosInLine, OcorrenciaChecklistInLine]
+    inlines = [ResponsaveisInLine, ServidorNagiosInLine, OcorrenciaNetBoxInline]
 
     def add_view(self, request, form_url="", extra_context=None):
         usuario_logado = request.user

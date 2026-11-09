@@ -8,6 +8,10 @@ from django.shortcuts import get_object_or_404, render
 from django.views.generic.base import RedirectView
 from django.urls import reverse_lazy
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from apps.noc.netbox import NetBoxError, search_devices
 
 class EnviarCheckListView(LoginRequiredMixin, PermissionRequiredMixin, RedirectView):
     permission_required = "noc.change_checklist"
@@ -26,3 +30,27 @@ class EnviarCheckListView(LoginRequiredMixin, PermissionRequiredMixin, RedirectV
 
 
         return reverse_lazy("admin:noc_checklist_change", kwargs={"object_id": checklist.id, })
+
+
+@login_required
+@require_GET
+def netbox_devices(request):
+    user = request.user
+    checklist_access = user.has_perm("noc.add_checklist") or user.has_perm("noc.change_checklist")
+    occurrence_access = user.has_perm("infra.add_ocorrencia") or user.has_perm("infra.change_ocorrencia")
+    if not user.is_staff or not checklist_access or not occurrence_access:
+        return JsonResponse({"error": "Sem permissão para selecionar equipamentos nas ocorrências."}, status=403)
+    query = request.GET.get("q", "").strip()
+    try:
+        offset = int(request.GET.get("offset", "0"))
+        if offset < 0 or offset > 1000000 or len(query) > 200:
+            raise ValueError
+    except ValueError:
+        return JsonResponse({"error": "Busca ou página inválida."}, status=400)
+    try:
+        result = search_devices(query, offset)
+    except NetBoxError as error:
+        return JsonResponse({"error": str(error)}, status=error.status)
+    response = JsonResponse(result)
+    response["Cache-Control"] = "no-store"
+    return response

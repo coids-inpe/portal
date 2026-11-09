@@ -1,0 +1,9 @@
+<div class="netbox-device-picker" data-search-url="{{ widget.search_url }}">
+  <div class="netbox-device-search">
+    <input type="search" class="netbox-device-query" aria-label="Buscar equipamento no NetBox" placeholder="Nome do equipamento" maxlength="200" autocomplete="off">
+    <button type="button" class="netbox-device-find">Buscar no NetBox</button>
+  </div>
+  {% include "django/forms/widgets/select.html" %}
+  <button type="button" class="netbox-device-more" hidden>Carregar mais</button>
+  <span class="netbox-device-status" role="status" aria-live="polite"></span>
+</div>
