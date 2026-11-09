@@ -38,8 +38,9 @@ def netbox_devices(request):
     user = request.user
     checklist_access = user.has_perm("noc.add_checklist") or user.has_perm("noc.change_checklist")
     occurrence_access = user.has_perm("infra.add_ocorrencia") or user.has_perm("infra.change_ocorrencia")
-    if not user.is_staff or not checklist_access or not occurrence_access:
-        return JsonResponse({"error": "Sem permissão para selecionar equipamentos nas ocorrências."}, status=403)
+    alert_access = user.has_perm("noc.add_checklistservidornagiosservico") or user.has_perm("noc.change_checklistservidornagiosservico")
+    if not user.is_staff or not checklist_access or not (occurrence_access or alert_access):
+        return JsonResponse({"error": "Sem permissão para selecionar equipamentos no NOC."}, status=403)
     query = request.GET.get("q", "").strip()
     try:
         offset = int(request.GET.get("offset", "0"))

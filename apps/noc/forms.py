@@ -32,10 +32,65 @@ class ChechlistResponsaveisInlineForm(forms.ModelForm):
         fields = ["responsavel"]
 
 class ChecklistServidorNagiosServicoInlineForm(forms.ModelForm):
+    netbox_device = forms.IntegerField(
+        label="Equipamento (NetBox)", min_value=1, required=False,
+        widget=NetBoxDeviceWidget,
+    )
+
     class Meta:
         model = ChecklistServidorNagiosServico
-        fields = ["alerta_monitoramento"]
-        widgets = {"alerta_monitoramento": forms.Select(attrs={"data-live-search": "True"})}
+        fields = ("netbox_device", "nagios_servico")
+        widgets = {"nagios_servico": forms.Select(attrs={"data-live-search": "True"})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        item = self.instance
+        choices = [("", "Selecione um equipamento")]
+        if item.netbox_object_id:
+            self.initial["netbox_device"] = item.netbox_object_id
+            choices.append((item.netbox_object_id, item.equipamento_nome))
+        elif item.alerta_monitoramento_id:
+            self.fields["netbox_device"].help_text = "Registro antigo: deixe equipamento e serviço vazios para manter o vínculo mostrado."
+        if self.is_bound:
+            selected = self.data.get(self.add_prefix("netbox_device"), "")
+            if str(selected).isdigit() and str(selected) != str(item.netbox_object_id):
+                choices.append((selected, f"Equipamento #{selected} — confirme pela busca"))
+        self.fields["netbox_device"].widget.choices = choices
+
+    def clean(self):
+        cleaned = super().clean()
+        if "netbox_device" in self.errors or "nagios_servico" in self.errors:
+            return cleaned
+        device_id = cleaned.get("netbox_device")
+        service = cleaned.get("nagios_servico")
+        item = self.instance
+        if item.pk and item.alerta_monitoramento_id and not device_id and not service:
+            return cleaned
+        if not device_id:
+            self.add_error("netbox_device", "Selecione um equipamento do NetBox.")
+        if not service:
+            self.add_error("nagios_servico", "Selecione um serviço Nagios.")
+        if not device_id or not service:
+            return cleaned
+        if not item.pk or device_id != item.netbox_object_id:
+            try:
+                device = get_device(device_id)
+            except NetBoxError as error:
+                self.add_error("netbox_device", str(error))
+                return cleaned
+            name = device.get("name") or device.get("display")
+            if not name or len(name) > 255:
+                self.add_error("netbox_device", "O equipamento precisa ter um nome de até 255 caracteres no NetBox.")
+                return cleaned
+            item.equipamento_nome = name
+        if service.pk != item.nagios_servico_id or not item.servico_nome:
+            item.servico_nome = service.servico
+        item.alerta_monitoramento = None
+        item.netbox_object_type = "dcim.device"
+        item.netbox_object_id = device_id
+        self.fields["netbox_device"].widget.choices = [("", "Selecione um equipamento"), (device_id, item.equipamento_nome)]
+        return cleaned
+
 
 class NetBoxOcorrenciaForm(forms.ModelForm):
     netbox_device = forms.IntegerField(

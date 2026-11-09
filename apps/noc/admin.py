@@ -14,6 +14,20 @@ class ServidorNagiosInLine(admin.TabularInline):
     verbose_name = "Alerta no Nagios"
     verbose_name_plural =  "Alertas no Nagios"
     form = ChecklistServidorNagiosServicoInlineForm
+    fields = ("netbox_device", "nagios_servico", "registro_atual")
+    readonly_fields = ("registro_atual",)
+
+    @admin.display(description="Equipamento (NetBox)")
+    def netbox_device(self, obj):
+        return obj.equipamento_nome or "Vínculo antigo"
+
+    @admin.display(description="Vínculo registrado")
+    def registro_atual(self, obj):
+        if not obj.pk:
+            return "—"
+        if obj.equipamento_url:
+            return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>', obj.equipamento_url, obj.identificacao)
+        return obj.identificacao
 
 
 class OcorrenciaNetBoxInline(admin.TabularInline):

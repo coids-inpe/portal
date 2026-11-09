@@ -80,8 +80,31 @@ criar inventário local. Os relatórios e e-mails continuam legíveis quando o
 NetBox estiver indisponível. Ocorrências antigas mantêm seus vínculos; ao
 editá-las, deixe a nova seleção vazia para preservar o equipamento antigo.
 
-Esta entrega seleciona dispositivos físicos. Os alertas Nagios do checklist e
-o módulo de monitoramento continuam usando seus fluxos existentes.
+Esta entrega seleciona dispositivos físicos. O módulo de monitoramento
+continua usando seus fluxos existentes.
+
+### Alertas Nagios no NOC
+
+Em **Alertas no Nagios**, adicione uma linha, busque o equipamento do NetBox
+e selecione um **Serviço Nagios** do catálogo existente. O catálogo pode ser
+mantido em **Monitoramento → Nagios Serviços**. É necessário ter um serviço
+cadastrado antes de registrar o alerta. Essa seleção é manual e não recebe
+eventos automaticamente do Nagios.
+
+A migração `noc.0005_checklist_nagios_netbox` acrescenta a referência externa,
+o serviço e os nomes históricos ao vínculo do turno; ela preserva os vínculos
+antigos. Ao editar um alerta antigo, mantenha os dois seletores vazios para
+preservá-lo ou preencha ambos para reassociá-lo explicitamente ao NetBox.
+O campo **Vínculo registrado** mostra a identificação salva.
+
+Novos alertas não criam servidores locais. Relatórios e e-mails apresentam
+alertas novos e antigos mesmo sem acesso ao NetBox. Nomes históricos são
+preservados em edições sem troca da referência. Um serviço usado por um novo
+alerta fica protegido contra exclusão para preservar o histórico.
+
+Além do acesso ao checklist e à administração, o usuário precisa de permissão
+para adicionar/alterar `noc.ChecklistServidorNagiosServico`. A busca compartilhada
+continua disponível também aos usuários autorizados a editar ocorrências.
 
 ## Funcionalidades 
 <p align="center">

@@ -17,8 +17,8 @@
         {% endif %}
     <br>
     <p><b>Alertas no Nagios</b></p>
-    {% for alerta in checklist.alerta_monitoramento.all %}
-        <p> - {{alerta}}<p>
+    {% for alerta in checklist.alertas_nagios %}
+        <p> - {% if alerta.equipamento_url %}<a href="{{ alerta.equipamento_url }}" target="_blank" rel="noopener noreferrer">{{ alerta.identificacao }}</a>{% else %}{{ alerta.identificacao }}{% endif %}<p>
     {% empty %}
         <p> - <p>
     {% endfor %}
