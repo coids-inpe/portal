@@ -15,6 +15,7 @@
         <h1 id="netbox-server-title">Servidores físicos</h1>
         {% if not netbox_error %}<span class="netbox-storage-count">{{ netbox_count }} servidores</span>{% endif %}
     </header>
+    <p><a href="{% url 'admin:infra_servidor_netbox_vms' %}">Máquinas virtuais</a></p>
     <form method="get" class="netbox-storage-filters" role="search">
         <div>
             <label for="netbox-server-name">Nome</label>
@@ -32,7 +33,8 @@
     {% elif netbox_servers %}
         <div class="netbox-storage-grid">
             {% for device in netbox_servers %}
-            <button type="button" class="netbox-storage-card" data-detail-url="{% url 'admin:infra_servidor_netbox_detail' device.id %}" aria-label="Ver informações de {{ device.name }}">
+            <div>
+            <a class="netbox-storage-card" href="{{ device.detail_url }}" data-more-url="{{ device.portal_url }}" aria-label="Abrir {{ device.name }}">
                 <div class="netbox-storage-card-header"><span class="netbox-storage-role">{{ device.role }}</span><h3>{{ device.name }}</h3></div>
                 <dl class="netbox-storage-facts">
                     <dt>Modelo</dt><dd>{{ device.model }}</dd>
@@ -41,7 +43,8 @@
                     <dt>Rack</dt><dd>{{ device.rack }}</dd>
                     <dt>Status</dt><dd><span class="netbox-storage-status{% if device.status == 'Ativo' %} is-active{% endif %}">{{ device.status }}</span></dd>
                 </dl>
-            </button>
+            </a>
+            </div>
             {% endfor %}
         </div>
     {% else %}
@@ -52,19 +55,54 @@
             <a class="button" id="netbox-server-load-more" href="?netbox_q={{ netbox_search_query|urlencode }}&amp;netbox_asset_tag={{ netbox_asset_tag_query|urlencode }}&amp;netbox_offset={{ netbox_next_offset }}">Carregar mais</a>
         </nav>
     {% endif %}
+    <dialog id="server-quick-view" class="netbox-storage-dialog" aria-labelledby="server-quick-title">
+        <div class="netbox-storage-dialog-heading"><div><span class="netbox-storage-dialog-eyebrow">SERVIDOR FÍSICO</span><h2 id="server-quick-title"></h2></div><button type="button" id="server-quick-close" aria-label="Fechar informações">&times;</button></div>
+        <dl id="server-quick-facts" class="netbox-storage-detail-facts"></dl>
+        <div class="netbox-storage-dialog-actions"><a id="server-quick-more" class="button" href="#">Ver mais opções</a></div>
+    </dialog>
 </section>
-<dialog id="netbox-storage-dialog" class="netbox-storage-dialog" aria-labelledby="netbox-storage-dialog-title">
-    <div class="netbox-storage-dialog-actions"><button type="button" id="netbox-storage-dialog-close" class="button">Fechar</button></div>
-    <h2 id="netbox-storage-dialog-title">Informações do servidor</h2>
-    <div id="netbox-storage-dialog-content" aria-live="polite"></div>
-</dialog>
 {% endblock %}
 
 {% block extrajs %}
 {{ block.super }}
-<script src="{% static 'infra/js/netbox_storage.js' %}" defer></script>
 <script>
 document.addEventListener("click", async (event) => {
+    const card = event.target.closest(".netbox-storage-card");
+    if (card) {
+        event.preventDefault();
+        const dialog = document.querySelector("#server-quick-view");
+        const title = document.querySelector("#server-quick-title");
+        const facts = document.querySelector("#server-quick-facts");
+        title.textContent = "Carregando servidor...";
+        facts.replaceChildren();
+        document.querySelector("#server-quick-more").href = card.dataset.moreUrl;
+        dialog.showModal();
+        try {
+            const response = await fetch(card.href, {credentials: "same-origin"});
+            if (!response.ok) throw new Error();
+            const {device} = await response.json();
+            title.textContent = device.name;
+            for (const [label, value] of [
+                ["Status", device.status], ["Função", device.role], ["Fabricante", device.manufacturer],
+                ["Modelo", device.model], ["Número de série", device.serial], ["Patrimônio", device.asset_tag],
+                ["Site", device.site], ["Rack", device.rack], ["Posição", device.position], ["Face", device.face],
+                ["IP principal", device.primary_ip], ["Descrição", device.description],
+            ]) {
+                const term = document.createElement("dt");
+                const detail = document.createElement("dd");
+                term.textContent = label;
+                detail.textContent = value || "—";
+                facts.append(term, detail);
+            }
+        } catch {
+            title.textContent = "Não foi possível consultar o servidor";
+        }
+        return;
+    }
+    if (event.target.closest("#server-quick-close")) {
+        document.querySelector("#server-quick-view").close();
+        return;
+    }
     const link = event.target.closest("#netbox-server-load-more");
     if (!link) return;
     event.preventDefault();
@@ -74,7 +112,7 @@ document.addEventListener("click", async (event) => {
         const response = await fetch(link.href, { credentials: "same-origin" });
         if (!response.ok) throw new Error();
         const page = new DOMParser().parseFromString(await response.text(), "text/html");
-        document.querySelector(".netbox-storage-grid").append(...page.querySelectorAll(".netbox-storage-grid > .netbox-storage-card"));
+        document.querySelector(".netbox-storage-grid").append(...page.querySelectorAll(".netbox-storage-grid > div"));
         const nextNav = page.querySelector(".netbox-server-pagination");
         const nav = link.closest(".netbox-server-pagination");
         nextNav ? nav.replaceWith(nextNav) : nav.remove();

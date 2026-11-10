@@ -1,0 +1,5 @@
+{% extends 'admin/change_list.html' %}
+{% block object-tools-items %}
+{% if has_add_permission %}<li><a href="{% url 'admin:infra_servidor_add' %}">Associar servidor do NetBox</a></li>{% endif %}
+<li><a href="{% url 'admin:infra_servidor_changelist' %}">Inventário do NetBox</a></li>
+{% endblock %}

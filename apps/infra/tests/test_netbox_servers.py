@@ -31,12 +31,13 @@ def test_server_inventory_and_detail():
     device = {"id": 9, "name": "srv01", "role": {"name": "Server"}, "status": {"value": "active"},
               "site": {"name": "CPT"}, "rack": {"name": "R01"},
               "device_type": {"model": "R710", "manufacturer": {"name": "Dell"}},
-              "asset_tag": "PAT-123"}
+              "asset_tag": "PAT-123", "face": {"value": "front", "label": "Front"}}
     with patch("apps.infra.services.netbox_server.get_server_devices", return_value={"count": 1, "results": [device], "next": None}), \
          patch("apps.infra.services.netbox_server.get_device_data", return_value=device):
         assert get_server_inventory()["devices"][0]["status"] == "Ativo"
         assert get_server_inventory()["devices"][0]["asset_tag"] == "PAT-123"
         assert get_server_detail(9)["model"] == "R710"
+        assert get_server_detail(9)["face"] == "Front"
 
 
 def test_server_detail_endpoint_returns_device():
@@ -61,7 +62,10 @@ def test_server_admin_shows_only_netbox_cards():
     assert b"srv01" in response.content
     assert b"PAT-123" in response.content
     assert b"netbox-storage-card" in response.content
-    assert reverse("admin:infra_servidor_add").encode() not in response.content
+    assert reverse("admin:infra_servidor_netbox_detail", args=[9]).encode() in response.content
+    assert b'Ver mais' in response.content
+    assert "Associar servidor do NetBox".encode() not in response.content
+    assert reverse("admin:infra_servidor_operacionais").encode() not in response.content
     assert b"No record" not in response.content
     assert b"changelist-form" not in response.content
 

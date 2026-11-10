@@ -1,0 +1,44 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'infra/css/netbox_server_operations.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <ul class="breadcrumb">
+    <li>
+      {% if is_vm %}<a href="{% url 'admin:infra_servidor_netbox_vm_operational' device_id %}">MÁQUINA VIRTUAL</a>{% else %}<a href="{% url 'admin:infra_servidor_netbox_operational' device_id %}">SERVIDOR</a>{% endif %}
+      <span class="divider">/</span>
+    </li>
+    <li class="active">HISTÓRICO</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="change-columns">
+    <div class="main-column server-ops-full">
+      <div class="main-column-item">
+        <a href="{% if is_vm %}{% url 'admin:infra_servidor_netbox_vm_operational' device_id %}{% else %}{% url 'admin:infra_servidor_netbox_operational' device_id %}{% endif %}" class="btn btn-light server-ops-back">&larr; Voltar {% if is_vm %}à VM{% else %}ao servidor{% endif %}</a>
+        <fieldset class="module aligned">
+          <div class="module-header"><div class="legend">Histórico do servidor</div></div>
+          <table class="table table-sm mb-0">
+            {% if entries %}<thead><tr><th>Data</th><th>Usuário</th><th>Alteração</th></tr></thead>{% endif %}
+            <tbody>
+            {% for entry in entries %}
+              <tr><td class="text-nowrap">{{ entry.action_time }}</td><td>{{ entry.user }}</td><td>{{ entry.change_message }}</td></tr>
+            {% empty %}
+              <tr><td class="text-muted">Nenhum evento registrado.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

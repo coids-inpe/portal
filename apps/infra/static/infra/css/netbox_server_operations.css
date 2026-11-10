@@ -1,0 +1,54 @@
+/* Página do servidor: complementa o layout padrão do tema (change-columns / fieldset.module / save-box). */
+
+.server-ops .module-header { margin-bottom: .75rem; }
+/* O tema recua 165px cabeçalhos dentro de <form> (alinhamento com labels laterais); aqui os labels ficam acima. */
+#content-main.server-ops form .module-header { padding-left: 15px; }
+#content-main .server-ops-back { margin-bottom: 12px; padding: 6px 14px; border: 1px solid #D9D9D9; background: #fff; }
+#content-main .server-ops-back:hover { background: #f1f3f5; }
+
+/* Visão geral */
+.server-ops-facts { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); margin: 0; padding: 0 15px; }
+.server-ops-facts dt, .server-ops-facts dd { margin: 0; padding: .5rem 0; border-bottom: 1px solid #eef0f2; overflow-wrap: anywhere; }
+.server-ops-facts dt { color: #5a6268; font-weight: 600; }
+.server-ops-facts dt:last-of-type, .server-ops-facts dd:last-of-type { border-bottom: 0; }
+
+/* Formulário de inventário */
+.server-ops-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; padding: 0 15px; }
+.server-ops-wide { grid-column: 1 / -1; }
+.server-ops label { font-weight: 600; }
+.server-ops-actions { display: flex; justify-content: flex-end; padding: .5rem 15px 0; border-top: 1px solid #D9D9D9; }
+
+/* Listas operacionais */
+.server-ops-table { margin: 0; }
+.server-ops-table td, .server-ops-table th { padding-left: 15px; vertical-align: middle; }
+.server-ops-table thead th { border-top: 0; color: #5a6268; font-weight: 600; }
+.server-ops-table tbody tr:first-child td { border-top: 0; }
+.server-ops-row-actions { white-space: nowrap; text-align: right; padding-right: 15px; }
+.server-ops-row-actions form { display: inline-flex; align-items: center; gap: .25rem; margin-left: .25rem; }
+.server-ops-row-actions select { width: auto; }
+
+.server-ops-add { display: flex; align-items: flex-end; gap: .75rem; margin-top: .5rem; padding: .75rem 15px 0; border-top: 1px solid #D9D9D9; }
+.server-ops-add > label { align-self: center; margin: 0; white-space: nowrap; }
+.server-ops-add > select { flex: 1; }
+.server-ops-add .form-group { flex: 1; margin: 0; }
+.server-ops-add .btn { flex: none; }
+
+/* Coluna de operações */
+.server-ops-status { display: grid; grid-template-columns: auto 1fr; gap: .4rem .75rem; margin: 0 0 1rem; }
+.server-ops-status dt { color: #5a6268; font-weight: 600; }
+.server-ops-status dd { margin: 0; text-align: right; }
+.server-ops-box form { margin: 0; }
+.server-ops-box-section { margin-top: .75rem !important; padding-top: .75rem; border-top: 1px solid #D9D9D9; }
+.server-ops-box-section label { display: block; margin: .25rem 0; }
+.server-ops-box-section select { margin-bottom: .5rem; }
+.server-ops-box h3 { margin: 0 0 .5rem; font-size: 1rem; font-weight: 600; }
+.server-ops-progress { margin: .75rem 0 0; color: #5a6268; }
+
+@media (max-width: 1100px) {
+  .server-ops-grid { grid-template-columns: minmax(0, 1fr); }
+  .server-ops-add { flex-wrap: wrap; }
+  .server-ops-add .form-group { flex-basis: 100%; }
+}
+
+/* Página de histórico: coluna única */
+#content-main .change-columns .main-column.server-ops-full { width: 100%; padding-right: 0; }

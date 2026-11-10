@@ -246,3 +246,12 @@
     margin-bottom: 0.65rem;
   }
 }
+
+.netbox-storage-dialog-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin:-1.25rem -1.25rem 0; padding:1.2rem 1.4rem; background:#0d47a1; color:#fff; }
+.netbox-storage-dialog-heading h2 { margin:.2rem 0 0; color:#fff; font-size:1.5rem; }
+.netbox-storage-dialog-eyebrow { color:#dcebf7; font-size:.75rem; font-weight:600; letter-spacing:.06em; }
+.netbox-storage-dialog-heading button { border:0; background:transparent; color:#fff; font-size:1.8rem; line-height:1; cursor:pointer; }
+.netbox-storage-dialog .netbox-storage-detail-facts { padding:1rem 0; grid-template-columns:minmax(120px,1fr) minmax(0,1.8fr); }
+.netbox-storage-dialog .netbox-storage-detail-facts dt, .netbox-storage-dialog .netbox-storage-detail-facts dd { padding:.5rem 0; border-bottom:1px solid #e4ebf0; }
+.netbox-storage-dialog-actions { margin:0; padding-top:.25rem; }
+.netbox-storage-dialog-actions a.button { background:#0d47a1; color:#fff; border-radius:4px; padding:.6rem 1.2rem; }

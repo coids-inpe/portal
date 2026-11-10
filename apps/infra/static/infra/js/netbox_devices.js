@@ -74,6 +74,16 @@
         details.append(dt, dd);
       });
       content.append(details);
+      if (device.portal_url) {
+        const footer = document.createElement("div");
+        footer.className = "netbox-device-footer";
+        const more = document.createElement("a");
+        more.className = "button";
+        more.href = device.portal_url;
+        more.textContent = "Ver mais opções";
+        footer.append(more);
+        content.append(footer);
+      }
     } catch (_) {
       message("Não foi possível consultar este dispositivo. Tente novamente.");
     }

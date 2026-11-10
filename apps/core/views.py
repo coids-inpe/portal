@@ -16,7 +16,7 @@ from django.views.generic.base import RedirectView, TemplateView, View
 
 from apps.core.models import GrupoTrabalho, GrupoAcesso
 from apps.colaborador.models import Colaborador
-from apps.infra.models import Servidor
+from apps.infra.models import NetBoxServerOperations, Servidor
 from apps.core.tasks import rodar_scripts_netapp, send_email_task
 from apps.core.utils.freeipa import FreeIPA
 from apps.core.utils.history import HistoryCore
@@ -146,7 +146,10 @@ class CoreStatusView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["colaborador"] = Colaborador.objects.values("is_active").filter(is_active=1).count()
         context["grupo"] = GrupoTrabalho.objects.values("grupo").filter(data_criado__isnull=False).count()
-        context["servidor"] = Servidor.objects.values("nome").filter(status="Em uso").count()
+        context["servidor"] = (
+            NetBoxServerOperations.objects.filter(status="Em uso").count()
+            + Servidor.objects.filter(status="Em uso", netbox_object_id__isnull=True).count()
+        )
         return context
 
 # Exportar grupos de acesso

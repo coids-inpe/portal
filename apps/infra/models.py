@@ -179,7 +179,28 @@ class HostnameIP(models.Model):
         return f"{self.hostname} | {self.ip} | {self.tipo.rede}"
 
 
+class NetBoxServerOperations(models.Model):
+    netbox_object_type = models.CharField(max_length=50)
+    netbox_object_id = models.PositiveBigIntegerField()
+    tipo_uso = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=255, default='Manutenção')
+    conta = models.CharField(max_length=255, default='Aguardando')
+    vm_remover = models.BooleanField(default=False)
+    vm_ambiente_virtual = models.ForeignKey('infra.AmbienteVirtual', null=True, blank=True, on_delete=models.PROTECT)
+    grupos_acesso = models.ManyToManyField('core.GrupoAcesso', blank=True)
+    nagios_servicos = models.ManyToManyField('monitoramento.NagiosServicos', blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['netbox_object_type', 'netbox_object_id'], name='unique_netbox_server_operations')]
+        verbose_name = 'Operações do servidor NetBox'
+
+
 class Servidor(Equipamento):
+    netbox_object_type = models.CharField(max_length=50, blank=True, default="", editable=False)
+    netbox_object_id = models.PositiveBigIntegerField(blank=True, null=True, editable=False)
+    netbox_ips = models.JSONField(default=list, blank=True, editable=False)
+    netbox_localizacao = models.CharField("Localização no NetBox", max_length=255, blank=True, default="", editable=False)
+    netbox_atualizado_em = models.DateTimeField("Dados do NetBox atualizados em", blank=True, null=True, editable=False)
     nome = models.CharField("nome", max_length=255, blank=True, null=True)
     configuracao = models.TextField("Configuração", blank=True, null=True)
     vinculado = models.ForeignKey("infra.Equipamento", verbose_name="Equipamento Vinculado", blank=True, null=True, related_name="servidor_vinculo", on_delete=models.PROTECT)
@@ -198,12 +219,29 @@ class Servidor(Equipamento):
         verbose_name = "Servidor"
         verbose_name_plural = "Servidores"
         ordering = ["nome"]
+        unique_together = (("netbox_object_type", "netbox_object_id"),)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        super().clean()
+        if self.netbox_object_type or self.netbox_object_id:
+            if self.netbox_object_type not in {"dcim.device", "virtualization.virtualmachine"} or not self.netbox_object_id or self.netbox_object_id < 1:
+                raise ValidationError("A referência do servidor no NetBox deve conter tipo e ID válidos.")
+
+    @property
+    def enderecos_operacionais(self):
+        if self.netbox_object_id:
+            return [(item['hostname'], item['ip']) for item in self.netbox_ips]
+        return [(item.hostname, item.ip) for item in self.hostname_ip.all() if item.ip]
 
     def __str__(self):
         return self.nome
 
     @property
     def freeipa_name(self):
+        if self.netbox_object_id:
+            hostname = self.host_principal[0].rstrip('.')
+            return hostname if '.' in hostname else f"{hostname}.cptec.inpe.br"
         return f"{self.nome}.cptec.inpe.br"
 
     @property
@@ -212,6 +250,10 @@ class Servidor(Equipamento):
 
     @property
     def host_principal(self):
+        if self.netbox_object_id:
+            if not self.enderecos_operacionais:
+                raise OSError("Cadastre um IP no NetBox e atualize os dados do servidor antes de executar a operação.")
+            return self.enderecos_operacionais[0]
         if self.hostname_ip: 
             host = self.hostname_ip.through.objects.filter(servidor__id=self.id, hostnameip__ip__startswith='150.163.').order_by('hostnameip__id')[0]
             return host.hostnameip.hostname, host.hostnameip.ip
@@ -460,7 +502,7 @@ class Ocorrencia(models.Model):
         super().clean()
         external = bool(self.netbox_object_type or self.netbox_object_id or self.equipamento_nome)
         if external and (
-            self.netbox_object_type != "dcim.device"
+            self.netbox_object_type not in {"dcim.device", "virtualization.virtualmachine"}
             or not self.netbox_object_id or self.netbox_object_id < 1
             or not self.equipamento_nome.strip() or self.equipamento_id
         ):
@@ -478,6 +520,8 @@ class Ocorrencia(models.Model):
         base = (NETBOX_URL or "").rstrip("/")
         if self.netbox_object_type == "dcim.device" and self.netbox_object_id and urlsplit(base).scheme in {"http", "https"}:
             return f"{base}/dcim/devices/{self.netbox_object_id}/"
+        if self.netbox_object_type == "virtualization.virtualmachine" and self.netbox_object_id and urlsplit(base).scheme in {"http", "https"}:
+            return f"{base}/virtualization/virtual-machines/{self.netbox_object_id}/"
         return ""
 
     def get_status(self):

@@ -3,6 +3,8 @@ from django.core.mail import send_mail
 
 from django.shortcuts import get_object_or_404
 from apps.infra.models import Servidor, TemplateVM
+from apps.infra.services.netbox_vm import load_vm_target
+from apps.infra.services.server_registration import VIRTUAL
 
 from celery import Celery, shared_task, states
 from celery_progress.backend import ProgressRecorder
@@ -11,6 +13,14 @@ from django.conf import settings
 
 import fabric  
 import time
+
+
+def resolve_vm_destination(vm_id):
+    if isinstance(vm_id, (list, tuple)):
+        if len(vm_id) != 2 or vm_id[0] != VIRTUAL or not isinstance(vm_id[1], int) or vm_id[1] < 1:
+            raise ValueError('Referência de VM inválida.')
+        return load_vm_target(vm_id[1])
+    return get_object_or_404(Servidor, id=vm_id)
 
 def get_tipo(vm_tipo):
     try:
@@ -32,7 +42,7 @@ def get_comandos(origem, destino):
     vm, vm_ip = destino.host_principal
     print('Definicao da variavel VM_IP na funcao GET_COMANDOS:', vm_ip)
     template_ips = origem.origens.all()
-    vm_ips = destino.hostname_ip.all()
+    vm_ips = destino.enderecos_operacionais
     print('Definicao da variavel VM_IPS na funcao GET_COMANDOS:', vm_ips)
 
     key_ip = 0
@@ -56,7 +66,7 @@ def get_comandos(origem, destino):
         comandos_final[str(comando.configuracao)].append(comando_novo)
     for key_ip in range(len(template_ips)):
         template_origem_ip = template_ips[key_ip].ip
-        vm_ip = vm_ips[key_ip].ip
+        vm_ip = vm_ips[key_ip][1]
         for comando in origem.template_comandos.filter(configuracao=2):
             comando_novo = comando.comando
             comando_novo = comando_novo.replace('{template_origem_ip}', template_origem_ip).replace('{vm_ip}', vm_ip)
@@ -67,10 +77,12 @@ def get_comandos(origem, destino):
 @shared_task(bind=True)
 def create_vm_task(self, servidor, vm_id,  template_id, memoria, cpu):
     origem = get_object_or_404(TemplateVM, id=template_id)
-    destino = get_object_or_404(Servidor, id=vm_id)
+    destino = resolve_vm_destination(vm_id)
     template = origem.nome
     template_origem, template_origem_ip = origem.host_principal
     vm, vm_ip = destino.host_principal
+    if destino.netbox_object_id:
+        vm = destino.nome
     print('IP DA NOVA VM:')
     print(vm_ip)
     vm_descricao = f"[ {destino.tipo_uso} - {destino.grupo_acesso_name()} ] {destino.descricao}"
@@ -176,14 +188,15 @@ def create_vm_task(self, servidor, vm_id,  template_id, memoria, cpu):
         return f"Error: {str(e)}"
     finally:
         session.xenapi.session.logout()
-    destino.vm_remover = True
-    destino.vm_ambiente_virtual = origem.ambiente_virtual
-    destino.save()
+    operation = getattr(destino, 'operation', destino)
+    operation.vm_remover = True
+    operation.vm_ambiente_virtual = origem.ambiente_virtual
+    operation.save()
     send_mail('Criação de VM OK',f'{vm} criada com sucesso!' , settings.EMAIL_HOST_USER, [settings.EMAIL_SUPORTE, settings.EMAIL_SYSADMIN, ])
     return f"{vm.upper()} OK"
 
 @shared_task(bind=True)
-def delete_vm_task(self, servidor, vm_name):
+def delete_vm_task(self, servidor, vm_name, vm_reference=None):
     user = settings.XEN_AUTH_USER
     password = settings.XEN_AUTH_PASSWORD
     try:
@@ -200,6 +213,12 @@ def delete_vm_task(self, servidor, vm_name):
             if vdi_ref != "OpaqueRef:NULL":
                 session.xenapi.VDI.destroy(vdi_ref)
         session.xenapi.VM.destroy(vm_ref)
+        if vm_reference:
+            if len(vm_reference) != 2 or vm_reference[0] != VIRTUAL or not isinstance(vm_reference[1], int):
+                raise ValueError('Referência de VM inválida.')
+            from apps.infra.models import NetBoxServerOperations
+            NetBoxServerOperations.objects.filter(netbox_object_type=VIRTUAL, netbox_object_id=vm_reference[1]).update(
+                vm_remover=False, vm_ambiente_virtual=None)
         send_mail('Remoção de VM OK',f'{vm_name} removida com sucesso!' , settings.EMAIL_HOST_USER, [settings.EMAIL_SUPORTE, settings.EMAIL_SYSADMIN, ])
         return f"{vm_name} DELETE"
     except Exception as e:

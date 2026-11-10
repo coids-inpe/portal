@@ -8,7 +8,7 @@ from django.contrib.auth.mixins import (LoginRequiredMixin,
 
 from django.http import JsonResponse, HttpRequest
 from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic.base import RedirectView, TemplateView
 from django.views.generic.edit import FormView
 from django.template.loader import render_to_string
@@ -17,6 +17,7 @@ from django.template.loader import render_to_string
 
 from apps.core.tasks import send_email_task
 from apps.core.utils.freeipa import FreeIPA
+from apps.infra.services.netbox_server import _is_server
 from apps.infra.forms import OcorrenciaForm, ServidorVMForm
 from apps.infra.models import (Equipamento, EquipamentoParte,
                                Ocorrencia, Servidor, TemplateVM)
@@ -402,7 +403,7 @@ class GetNetboxRacksView(LoginRequiredMixin, TemplateView):
 
         # Mantém os dados que a TemplateView já coloca no contexto.
         context = super().get_context_data(**kwargs)
-        context["title"] = "Racks do NetBox"
+        context["title"] = "Racks"
 
         # Lê os filtros e a posição da página na URL. O service consulta o
         # NetBox e devolve os grupos, racks, total e próximo offset.
@@ -467,4 +468,6 @@ class RackDeviceDetailView(LoginRequiredMixin, TemplateView):
             "serial": device.get("serial") or "—", "asset_tag": device.get("asset_tag") or "—",
             "position": device.get("position") or "—", "face": _netbox_label(device.get("face")),
             "ip": ip.get("address") or "—", "description": device.get("description") or "—",
+            "portal_url": reverse("admin:infra_servidor_netbox_operational", args=[device_id])
+            if _is_server(device) and (request.user.has_perm("infra.view_servidor") or request.user.has_perm("infra.change_servidor")) else "",
         }})

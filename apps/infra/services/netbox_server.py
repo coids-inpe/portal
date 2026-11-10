@@ -53,8 +53,10 @@ def get_server_detail(device_id):
         "site": (device.get("site") or {}).get("name") or "—",
         "rack": (device.get("rack") or {}).get("name") or "—",
         "position": device.get("position"),
-        "serial": device.get("serial") or "—",
-        "asset_tag": device.get("asset_tag") or "—",
+        "face": (device.get("face") or {}).get("label") or "—",
+        "serial": device.get("serial") or "",
+        "asset_tag": device.get("asset_tag") or "",
         "primary_ip": (device.get("primary_ip") or {}).get("address") or "—",
-        "description": device.get("description") or "—",
+        "description": device.get("description") or "",
+        "comments": device.get("comments") or "",
     }

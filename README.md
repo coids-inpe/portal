@@ -106,6 +106,46 @@ Além do acesso ao checklist e à administração, o usuário precisa de permiss
 para adicionar/alterar `noc.ChecklistServidorNagiosServico`. A busca compartilhada
 continua disponível também aos usuários autorizados a editar ocorrências.
 
+## Servidores vinculados ao NetBox
+
+Em **Infraestrutura → Servidores**, clique no cartão do servidor físico do
+NetBox. A tela operacional abre diretamente; o registro local só é criado
+no primeiro salvamento. Depois disso, grupos, ocorrências e ações ficam na
+mesma tela. O dispositivo deve ter papel `Server`/`Servidor` no NetBox.
+O cadastro direto ainda permite selecionar máquinas virtuais do NetBox.
+
+O cadastro é mantido no NetBox. Nome, marca, modelo, serial, patrimônio,
+descrição, localização e endereços são obtidos pela API. O portal mantém um
+registro operacional com referência única por tipo/ID e dados da última leitura,
+compatível com os vínculos existentes. Nenhum HostnameIP ou Rede é criado ou
+reservado automaticamente ao associar um servidor.
+
+Nome, serial, patrimônio e descrição podem ser editados nessa tela e são
+gravados no NetBox. Modelo, marca, localização e IPs continuam vindo da API;
+para relê-los, marque **Atualizar identificação e IPs do NetBox ao salvar**.
+A edição apenas dos campos operacionais não exige acesso ao NetBox. O horário
+da última leitura fica visível. Após associado, o tipo/ID não pode ser trocado.
+
+**Configurações operacionais e registros antigos** abre os registros locais.
+Os vínculos de grupos de acesso, tenants, sistemas operacionais e rotinas de
+VM continuam no portal. Abra o registro antigo para associá-lo explicitamente;
+não há associação automática por nome nem migração em lote. Os campos de
+inventário dos registros antigos continuam locais.
+
+As rotinas de infraestrutura usam os IPs retornados do NetBox nos novos vínculos,
+com o primário primeiro e DNS completo quando disponível. Operações de VM
+exigem os endereços necessários ao template; a identidade da VM no Xen é o nome
+do servidor, enquanto o hostname de configuração vem do registro DNS.
+Servidores FreeIPA precisam também das regras operacionais de rede/montagem
+locais correspondentes. Ausência dessa regra é apresentada no formulário.
+O status operacional do portal não é substituído pelo status de inventário do NetBox.
+
+Aplique `python manage.py migrate` ao atualizar: `infra.0023_servidor_netbox_registration`
+acrescenta a referência, os snapshots de IP/localização, a data da leitura e uma
+restrição contra associação duplicada. As tabelas e vínculos antigos permanecem.
+O módulo de monitoramento continua com seus consumidores legados; esta atualização
+não adapta os painéis de monitoramento para os novos snapshots.
+
 ## Funcionalidades 
 <p align="center">
   <strong align="center">Cadastro de Colaboradores Integrado com LDAP - django, celery, django-garb, python_freeipa</strong>

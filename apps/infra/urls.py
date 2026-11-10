@@ -5,9 +5,9 @@ from apps.infra.views import AlterarStatusServidorView, CriarServidorLocalView, 
 app_name = "infra"
 
 urlpatterns = [
-    path("datacenter/netbox/racks/", GetNetboxRacksView.as_view(), name="netbox_racks"),
-    path("datacenter/netbox/racks/<int:rack_id>/devices/", RackDevicesView.as_view(), name="rack_devices"),
-    path("datacenter/netbox/racks/<int:rack_id>/devices/<int:device_id>/", RackDeviceDetailView.as_view(), name="rack_device_detail"),
+    path("racks/", GetNetboxRacksView.as_view(), name="netbox_racks"),
+    path("racks/<int:rack_id>/devices/", RackDevicesView.as_view(), name="rack_devices"),
+    path("racks/<int:rack_id>/devices/<int:device_id>/", RackDeviceDetailView.as_view(), name="rack_device_detail"),
     path("datacenter/", DataCenterView.as_view(), name="datacenter"),
     path("servidor/<int:pk>/criarservidorldap/", login_required(CriarServidorLdapView.as_view()), name="criar_servidor_ldap"),
     path("servidor/<int:pk>/alterarstatus/", login_required(AlterarStatusServidorView.as_view()), name="alterar_servidor_status"),

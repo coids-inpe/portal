@@ -1,0 +1,291 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'infra/css/netbox_server_operations.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <ul class="breadcrumb">
+    <li>
+      {% if is_vm %}<a href="{% url 'admin:infra_servidor_netbox_vms' %}">MÁQUINAS VIRTUAIS</a>{% else %}<a href="{% url 'admin:infra_servidor_changelist' %}">SERVIDORES FÍSICOS</a>{% endif %}
+      <span class="divider">/</span>
+    </li>
+    <li class="active">{{ device.name|upper }}</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+{% with can_change=perms.infra.change_servidor status=operation.status|default:'Manutenção' conta=operation.conta|default:'Aguardando' %}
+<div id="content-main" class="server-ops">
+  <div class="change-columns">
+    <div class="main-column">
+      <div class="main-column-item">
+        <a href="{% if is_vm %}{% url 'admin:infra_servidor_netbox_vms' %}{% else %}{% url 'admin:infra_servidor_changelist' %}{% endif %}" class="btn btn-light server-ops-back">&larr; Voltar para {% if is_vm %}máquinas virtuais{% else %}servidores físicos{% endif %}</a>
+
+        <fieldset class="module aligned">
+          <div class="module-header">
+            <div class="legend">Visão geral</div>
+            <div class="description">Dados do inventário de equipamentos.</div>
+          </div>
+          <dl class="server-ops-facts">
+            <dt>Modelo</dt><dd>{{ device.model|default:'—' }}</dd>
+            <dt>Patrimônio</dt><dd>{{ device.asset_tag|default:'—' }}</dd>
+            <dt>Site</dt><dd>{{ device.site|default:'—' }}</dd>
+            <dt>Rack</dt><dd>{{ device.rack|default:'—' }}</dd>
+            <dt>Status no inventário</dt><dd>{{ device.status|default:'—' }}</dd>
+            <dt>IP principal</dt><dd>{{ device.primary_ip|default:'—' }}</dd>
+          </dl>
+        </fieldset>
+
+        {% if can_change %}
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="action" value="update_inventory">
+          <fieldset class="module aligned">
+            <div class="module-header">
+              <div class="legend">Inventário</div>
+              <div class="description">As alterações são gravadas no inventário de equipamentos.</div>
+            </div>
+            <div class="server-ops-grid">
+              <div class="form-group">
+                <label for="server-name">Nome</label>
+                <input id="server-name" name="nome" maxlength="255" required value="{{ device.name }}" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="server-serial">Serial / Service tag</label>
+                <input id="server-serial" name="serie" maxlength="255" value="{{ device.serial|default_if_none:'' }}" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="server-asset">Patrimônio</label>
+                <input id="server-asset" name="patrimonio" maxlength="255" value="{{ device.asset_tag|default_if_none:'' }}" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="server-description">Descrição</label>
+                <input id="server-description" name="descricao" maxlength="255" value="{{ device.description|default_if_none:'' }}" class="form-control">
+              </div>
+              <div class="form-group server-ops-wide">
+                <label for="server-comments">Comentários</label>
+                <textarea id="server-comments" name="comentarios" maxlength="10000" rows="4" class="form-control">{{ device.comments|default_if_none:'' }}</textarea>
+              </div>
+            </div>
+            <div class="server-ops-actions">
+              <button type="submit" class="btn btn-info">Salvar inventário</button>
+            </div>
+          </fieldset>
+        </form>
+        {% endif %}
+
+        <fieldset class="module aligned">
+          <div class="module-header">
+            <div class="legend">Grupos de Acesso</div>
+          </div>
+          <table class="table table-sm server-ops-table">
+            <tbody>
+            {% for group in operation.grupos_acesso.all %}
+              <tr>
+                <td>{{ group }}</td>
+                {% if can_change %}
+                <td class="server-ops-row-actions">
+                  <form method="post">{% csrf_token %}
+                    <input type="hidden" name="action" value="remove_group"><input type="hidden" name="group" value="{{ group.pk }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                  </form>
+                </td>
+                {% endif %}
+              </tr>
+            {% empty %}
+              <tr><td class="text-muted">Nenhum grupo configurado.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% if can_change %}
+          <form method="post" class="server-ops-add">{% csrf_token %}
+            <input type="hidden" name="action" value="add_group">
+            <label for="access-group">Grupo de acesso</label>
+            <select id="access-group" name="group" class="form-control">{% for group in groups %}<option value="{{ group.pk }}">{{ group }}</option>{% endfor %}</select>
+            <button type="submit" class="btn btn-info">Adicionar</button>
+          </form>
+          {% endif %}
+        </fieldset>
+
+        <fieldset class="module aligned">
+          <div class="module-header">
+            <div class="legend">Ocorrências</div>
+          </div>
+          <table class="table table-sm server-ops-table">
+            {% if occurrences %}<thead><tr><th>Ocorrência</th><th>Descrição</th><th>Status</th>{% if can_change %}<th></th>{% endif %}</tr></thead>{% endif %}
+            <tbody>
+            {% for occurrence in occurrences %}
+              <tr>
+                <td>{{ occurrence.ocorrencia }}</td>
+                <td>{{ occurrence.descricao|default:'—' }}</td>
+                <td><span class="badge badge-{% if occurrence.status == 'Fechado' %}success{% elif occurrence.status == 'Aberto' %}danger{% elif occurrence.status == 'Suspenso' %}secondary{% else %}warning{% endif %}">{{ occurrence.status }}</span></td>
+                {% if can_change %}
+                <td class="server-ops-row-actions">
+                  {% if occurrence.netbox_object_id %}
+                  <form method="post">{% csrf_token %}
+                    <input type="hidden" name="action" value="update_occurrence"><input type="hidden" name="occurrence" value="{{ occurrence.pk }}">
+                    <label class="sr-only" for="occurrence-status-{{ occurrence.pk }}">Alterar status</label>
+                    <select id="occurrence-status-{{ occurrence.pk }}" name="status" class="form-control form-control-sm">{% for value in occurrence_statuses %}<option{% if occurrence.status == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select>
+                    <button type="submit" class="btn btn-sm btn-outline-info">Salvar</button>
+                  </form>
+                  <form method="post">{% csrf_token %}
+                    <input type="hidden" name="action" value="delete_occurrence"><input type="hidden" name="occurrence" value="{{ occurrence.pk }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                  </form>
+                  {% endif %}
+                </td>
+                {% endif %}
+              </tr>
+            {% empty %}
+              <tr><td class="text-muted">Nenhuma ocorrência.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% if can_change %}
+          <form method="post" class="server-ops-add server-ops-add-occurrence">{% csrf_token %}
+            <input type="hidden" name="action" value="add_occurrence">
+            <div class="form-group">
+              <label for="occurrence-name">Ocorrência</label>
+              <input id="occurrence-name" name="ocorrencia" maxlength="255" required class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="occurrence-description">Descrição</label>
+              <input id="occurrence-description" name="descricao" maxlength="255" class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="occurrence-status">Status</label>
+              <select id="occurrence-status" name="status" class="form-control">{% for value in occurrence_statuses %}<option>{{ value }}</option>{% endfor %}</select>
+            </div>
+            <button type="submit" class="btn btn-info">Adicionar</button>
+          </form>
+          {% endif %}
+        </fieldset>
+
+        <fieldset class="module aligned">
+          <div class="module-header">
+            <div class="legend">Serviços Nagios</div>
+          </div>
+          <table class="table table-sm server-ops-table">
+            <tbody>
+            {% for service in operation.nagios_servicos.all %}
+              <tr>
+                <td>{{ service }}</td>
+                {% if can_change %}
+                <td class="server-ops-row-actions">
+                  <form method="post">{% csrf_token %}
+                    <input type="hidden" name="action" value="remove_nagios"><input type="hidden" name="service" value="{{ service.pk }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                  </form>
+                </td>
+                {% endif %}
+              </tr>
+            {% empty %}
+              <tr><td class="text-muted">Nenhum serviço configurado.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% if can_change %}
+          <form method="post" class="server-ops-add">{% csrf_token %}
+            <input type="hidden" name="action" value="add_nagios">
+            <label for="nagios-service">Serviço Nagios</label>
+            <select id="nagios-service" name="service" class="form-control">{% for service in nagios_services %}<option value="{{ service.pk }}">{{ service }}</option>{% endfor %}</select>
+            <button type="submit" class="btn btn-info">Adicionar</button>
+          </form>
+          {% endif %}
+        </fieldset>
+
+      </div>
+    </div>
+
+    <div class="box-column">
+      <div class="save-box server-ops-box">
+        <dl class="server-ops-status">
+          <dt>Inventário</dt><dd><span class="badge badge-{% if device.status == 'Ativo' %}success{% else %}secondary{% endif %}">{{ device.status|default:'—' }}</span></dd>
+          <dt>Portal</dt><dd><span class="badge badge-{% if status == 'Em uso' %}success{% else %}warning{% endif %}">{{ status }}</span></dd>
+          <dt>Conta</dt><dd><span class="badge badge-{% if conta == 'Aguardando' %}secondary{% else %}info{% endif %}">{{ conta }}</span></dd>
+        </dl>
+
+        <a href="{% if is_vm %}{% url 'admin:infra_servidor_netbox_vm_history' device_id %}{% else %}{% url 'admin:infra_servidor_netbox_history' device_id %}{% endif %}" class="btn btn-secondary">Histórico</a>
+
+        {% if can_change %}
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="action" value="toggle_status">
+          {% if status == 'Em uso' %}
+          <button type="submit" class="btn btn-danger">Colocar em Manutenção</button>
+          {% else %}
+          <button type="submit" class="btn btn-success">Colocar em uso</button>
+          {% endif %}
+        </form>
+        {% if conta == 'Aguardando' %}
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="action" value="create_local">
+          <button type="submit" class="btn btn-info">Criar com Conta Local</button>
+        </form>
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="action" value="create_freeipa">
+          <button type="submit" class="btn btn-info">Criar no FreeIPA</button>
+        </form>
+        {% endif %}
+
+        <form method="post" class="server-ops-box-section">{% csrf_token %}
+          <label for="tipo-uso">Tipo de uso</label>
+          <select id="tipo-uso" name="tipo_uso" class="form-control">{% for value, label in tipos_uso %}<option value="{{ value }}"{% if operation.tipo_uso == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          <button type="submit" class="btn btn-info">Salvar tipo de uso</button>
+        </form>
+
+        {% if is_vm and operation and conta != 'Aguardando' %}
+        <form method="post" class="server-ops-box-section">{% csrf_token %}
+          <input type="hidden" name="action" value="create_vm">
+          <h3>Criar VM</h3>
+          <label for="vm-template">Template</label>
+          <select id="vm-template" name="template" class="form-control">{% for template in vm_templates %}<option value="{{ template.pk }}">{{ template }}</option>{% endfor %}</select>
+          <label for="vm-memory">Memória (GB)</label>
+          <select id="vm-memory" name="memoria" class="form-control"><option>2</option><option>4</option><option selected>8</option><option>16</option></select>
+          <label for="vm-cpu">CPU</label>
+          <select id="vm-cpu" name="cpu" class="form-control"><option>1</option><option>2</option><option selected>4</option><option>8</option></select>
+          <button type="submit" class="btn btn-info">Criar VM</button>
+        </form>
+        {% endif %}
+        {% if is_vm and operation.vm_remover %}
+        <form method="post" class="server-ops-box-section" onsubmit="return confirm('Remover esta VM do Xen? O registro no inventário será mantido.');">{% csrf_token %}
+          <input type="hidden" name="action" value="delete_vm">
+          <button type="submit" class="btn btn-danger">Remover VM do Xen</button>
+        </form>
+        {% endif %}
+        {% endif %}
+
+        {% if task_status_url %}
+        <p id="vm-progress" class="server-ops-progress" data-status-url="{{ task_status_url }}" role="status">Aguardando a tarefa de criação de VM...</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+{% if task_status_url %}
+<script>
+(() => {
+  const progress = document.querySelector('#vm-progress');
+  const poll = async () => {
+    try {
+      const response = await fetch(progress.dataset.statusUrl, {credentials: 'same-origin'});
+      const data = await response.json();
+      progress.textContent = data.progress?.description || data.state || 'Aguardando';
+      if (!data.complete) setTimeout(poll, 2000);
+    } catch {
+      progress.textContent = 'Não foi possível consultar o progresso.';
+    }
+  };
+  poll();
+})();
+</script>
+{% endif %}
+{% endblock %}

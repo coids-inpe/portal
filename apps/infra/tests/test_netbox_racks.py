@@ -70,7 +70,7 @@ def test_rack_card_opens_device_list():
          patch("apps.infra.services.rack_visualization.get_rack_elevation", return_value=[]):
         response = GetNetboxRacksView.as_view()(request)
     response.render()
-    assert b'data-devices-url="/infra/datacenter/netbox/racks/7/devices/"' in response.content
+    assert b'data-devices-url="/infra/racks/7/devices/"' in response.content
     assert b'netbox-device-dialog' in response.content
 
 
@@ -90,6 +90,20 @@ def test_rack_devices_and_device_details():
         detail = resolve(detail_url).func(detail_request, rack_id=7, device_id=11)
     assert json.loads(listing.content)["devices"][0]["name"] == "Servidor A"
     assert json.loads(detail.content)["device"]["status"] == "Ativo"
+    assert json.loads(detail.content)["device"]["portal_url"] == reverse("admin:infra_servidor_netbox_operational", args=[11])
+
+
+def test_rack_device_detail_has_no_server_link_for_other_roles():
+    from django.urls import resolve
+    user = Mock(is_authenticated=True)
+    device = {"id": 12, "name": "Switch A", "rack": {"id": 7},
+              "status": {"value": "active"}, "device_role": {"name": "Switch"}}
+    with patch("apps.infra.views.get_device_data", return_value=device):
+        url = reverse("infra:rack_device_detail", args=[7, 12])
+        request = RequestFactory().get(url)
+        request.user = user
+        detail = resolve(url).func(request, rack_id=7, device_id=12)
+    assert json.loads(detail.content)["device"]["portal_url"] == ""
 
 
 def test_netbox_racks_shows_front_occupancy_only():

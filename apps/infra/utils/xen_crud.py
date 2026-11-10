@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 import os
+import subprocess
 
 from django.shortcuts import get_object_or_404
 from apps.infra.tasks import create_vm_task, delete_vm_task
@@ -30,15 +31,13 @@ class XenCrud:
         self.request = request
         self.vm = vm
         self.servidores = [servidor.nome for servidor in ambiente_virtual.servidor.all()]
+        if not self.servidores:
+            raise OSError("O ambiente virtual não possui um servidor de conexão configurado.")
         self.servidor_name = self.servidores[0]
         servidor_obj = ambiente_virtual.servidor.filter(nome=self.servidor_name).first()
 
         if servidor_obj:
-            self.servidor_ips = [
-                hostnameip.ip
-                for hostnameip in servidor_obj.hostname_ip.all()
-                if hostnameip.ip
-            ]
+            self.servidor_ips = [address for _, address in servidor_obj.enderecos_operacionais]
             self.servidor = self.servidor_ips[0] if self.servidor_ips else None
         else:
             self.servidor = []
@@ -69,13 +68,14 @@ class XenCrud:
 
     def create_vm(self, template,  memoria, cpu):
         origem_hostname, origem_ip = template.host_principal
-        origem_ping = os.system(f"ping -c 1 -W 1 -q {origem_hostname}.cptec.inpe.br  > /dev/null")
-        destino_ping = os.system(f"ping -c 1 -W 1 -q {self.vm.nome}.cptec.inpe.br  > /dev/null") 
+        destino_hostname, destino_ip = self.vm.host_principal
+        origem_ping = subprocess.run(['ping', '-c', '1', '-W', '1', '-q', '--', origem_ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        destino_ping = subprocess.run(['ping', '-c', '1', '-W', '1', '-q', '--', destino_ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
         self.login()
         print('login ok')
         vm_ref_verificacao_vm = self.session.xenapi.VM.get_by_name_label(self.vm.nome)
         if ( origem_ping != 0  and len(vm_ref_verificacao_vm) == 0
-            and  destino_ping != 0  and len(template.origens.all()) == len(self.vm.hostname_ip.all())):
+            and  destino_ping != 0  and len(template.origens.all()) == len(self.vm.enderecos_operacionais)):
             messages.add_message(self.request, messages.SUCCESS, f"XEN: Criando a nova VM")
             return create_vm_task.delay(self.servidor, self.vm.id, template.id, memoria, cpu)
         else:
@@ -85,4 +85,5 @@ class XenCrud:
     def delete_vm(self):
         self.login()
         messages.add_message(self.request, messages.WARNING, f"XEN: Deletando VM em segundo plano.")
-        return delete_vm_task.delay(self.servidor, self.vm.nome)
+        reference = self.vm.id if isinstance(self.vm.id, (list, tuple)) else None
+        return delete_vm_task.delay(self.servidor, self.vm.nome, reference) if reference else delete_vm_task.delay(self.servidor, self.vm.nome)

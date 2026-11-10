@@ -1,0 +1,38 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'infra/css/netbox_storage.css' %}">{% endblock %}
+{% block content_title %}{% endblock %}
+{% block content %}
+<section class="netbox-storage-page">
+<header class="netbox-storage-heading"><h1>Máquinas virtuais</h1><a href="{% url 'admin:infra_servidor_changelist' %}">Servidores físicos</a></header>
+<form method="get" class="netbox-storage-filters"><div><label for="vm-search">Nome</label><input id="vm-search" name="q" value="{{ query }}" placeholder="Buscar VM"></div><button type="submit" class="button">Buscar</button></form>
+<div class="netbox-storage-grid">{% for vm in vms %}<a href="{% url 'admin:infra_servidor_netbox_vm_detail' vm.id %}" data-more-url="{% url 'admin:infra_servidor_netbox_vm_operational' vm.id %}" class="netbox-storage-card vm-card"><div class="netbox-storage-card-header"><span class="netbox-storage-role">VM</span><h2>{{ vm.label }}</h2></div></a>{% empty %}<p>Nenhuma VM encontrada.</p>{% endfor %}</div>
+{% if more %}<p><a class="button" href="?q={{ query|urlencode }}&amp;offset={{ offset|add:20 }}">Próxima página</a></p>{% endif %}
+<dialog id="vm-quick-view" class="netbox-storage-dialog" aria-labelledby="vm-quick-title"><h2 id="vm-quick-title"></h2><dl id="vm-quick-facts"></dl><a id="vm-quick-more" class="button" href="#">Ver mais</a><button type="button" id="vm-quick-close">Fechar</button></dialog>
+</section>
+<script>
+document.addEventListener('click', async event => {
+  const card = event.target.closest('.vm-card');
+  if (card) {
+    event.preventDefault();
+    const dialog = document.querySelector('#vm-quick-view');
+    const title = document.querySelector('#vm-quick-title');
+    const facts = document.querySelector('#vm-quick-facts');
+    title.textContent = 'Carregando VM...'; facts.replaceChildren();
+    document.querySelector('#vm-quick-more').href = card.dataset.moreUrl;
+    dialog.showModal();
+    try {
+      const response = await fetch(card.href, {credentials: 'same-origin'});
+      if (!response.ok) throw new Error();
+      const {device} = await response.json();
+      title.textContent = device.name;
+      for (const [name, value] of [['Localização', device.site], ['IP principal', device.primary_ip]]) {
+        const dt = document.createElement('dt'), dd = document.createElement('dd');
+        dt.textContent = name; dd.textContent = value || '—'; facts.append(dt, dd);
+      }
+    } catch { title.textContent = 'Não foi possível consultar a VM'; }
+  }
+  if (event.target.closest('#vm-quick-close')) document.querySelector('#vm-quick-view').close();
+});
+</script>
+{% endblock %}

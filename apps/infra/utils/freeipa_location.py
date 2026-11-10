@@ -1,8 +1,29 @@
 import numpy as np
+from ipaddress import ip_address, ip_network
 from typing import List
 from django.contrib import messages
 from apps.core.utils.freeipa import FreeIPA
 from apps.infra.models import (Equipamento, Rede, Servidor, StorageGrupoAcessoMontagem)
+
+
+def get_rede_montagem(servidor):
+    if servidor.netbox_object_id:
+        addresses = [ip_address(address) for _, address in servidor.enderecos_operacionais]
+        for rede in Rede.objects.order_by('-prioridade_montagem'):
+            if not rede.ip:
+                continue
+            try:
+                matches = any(address in ip_network(rede.ip, strict=False) for address in addresses) if '/' in rede.ip else any(str(address) == rede.ip or str(address).startswith(rede.ip.rstrip('.') + '.') for address in addresses)
+            except ValueError:
+                continue
+            if matches:
+                return rede
+    else:
+        ips = np.unique([hostname.tipo.ip for hostname in servidor.hostname_ip.all() if hostname.tipo_id])
+        rede = Rede.objects.filter(ip__in=ips).order_by('-prioridade_montagem').first()
+        if rede:
+            return rede
+    raise OSError('Nenhuma regra de rede de montagem corresponde aos IPs deste servidor.')
 
 
 class Automount:
@@ -10,8 +31,7 @@ class Automount:
         self.client_feeipa = client_feeipa
         self.servidor = servidor
         self.request = request
-        ips = (np.unique([ hostname.tipo.ip for hostname in servidor.hostname_ip.all()]))
-        self.rede = Rede.objects.filter(ip__in=ips).order_by("-prioridade_montagem")[0]
+        self.rede = get_rede_montagem(servidor)
 
 
     def adicionar_grupos(self, grupos_acesso:List[str]):

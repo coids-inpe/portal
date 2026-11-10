@@ -7,6 +7,9 @@ from garb.forms import GarbForm
 
 from apps.infra.models import Equipamento, EquipamentoGrupoAcesso, EquipamentoParte, HostnameIP, Ocorrencia, Servidor, ServidorHostnameIP, StorageAreaGrupoTrabalho, TemplateComando, TemplateVM
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+from apps.infra.services.server_registration import PHYSICAL, TYPES, NetBoxError, get_server_snapshot, update_server_inventory
+from apps.infra.widgets import ServidorNetBoxWidget
 
 
 class HostnameChoiceField(ModelChoiceField):
@@ -182,3 +185,96 @@ class OcorrenciaChecklistInLineForm(forms.ModelForm):
     class Meta:
         model = Ocorrencia
         fields = ("equipamento","descricao")
+
+
+
+class NetBoxServidorForm(forms.ModelForm):
+    netbox_tipo = forms.ChoiceField(label='Tipo no NetBox', choices=TYPES, required=False, initial=PHYSICAL)
+    netbox_device = forms.IntegerField(label='Servidor (NetBox)', min_value=1, required=False, widget=ServidorNetBoxWidget)
+    atualizar_netbox = forms.BooleanField(label='Atualizar identificação e IPs do NetBox ao salvar', required=False)
+    nome = forms.CharField(label='Nome', max_length=255, required=False)
+    serie = forms.CharField(label='Serial', max_length=255, required=False)
+    patrimonio = forms.CharField(label='Patrimônio', max_length=255, required=False)
+    descricao = forms.CharField(label='Descrição', max_length=255, required=False)
+
+    class Meta:
+        model = Servidor
+        fields = ('tipo_uso', 'servicos', 'vinculado', 'vm_remover')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        item = self.instance
+        choices = [('', 'Selecione um servidor')]
+        if item.netbox_object_id:
+            self.initial['netbox_tipo'] = item.netbox_object_type
+            self.initial['netbox_device'] = item.netbox_object_id
+            choices.append((item.netbox_object_id, item.nome))
+            for field in ('nome', 'serie', 'patrimonio', 'descricao'):
+                self.initial[field] = getattr(item, field) or ''
+        elif item.pk and 'netbox_device' in self.fields:
+            self.fields['netbox_device'].help_text = 'Registro antigo: deixe sem seleção para manter os vínculos atuais.'
+        if self.is_bound:
+            selected = self.data.get(self.add_prefix('netbox_device'), '')
+            if str(selected).isdigit() and str(selected) != str(item.netbox_object_id):
+                choices.append((selected, f'Servidor #{selected} — confirme pela busca'))
+        if 'netbox_device' in self.fields:
+            self.fields['netbox_device'].widget.choices = choices
+        if 'servicos' in self.fields:
+            self.fields['servicos'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if 'netbox_device' in self.errors or 'netbox_tipo' in self.errors:
+            return cleaned
+        item = self.instance
+        object_id = cleaned.get('netbox_device')
+        kind = cleaned.get('netbox_tipo')
+        if not object_id:
+            if item.pk and not item.netbox_object_id and not cleaned.get('atualizar_netbox'):
+                for field in ('nome', 'serie', 'patrimonio', 'descricao'):
+                    cleaned[field] = getattr(item, field) or ''
+                return cleaned
+            self.add_error('netbox_device', 'Selecione um servidor do NetBox.')
+            return cleaned
+        if kind not in dict(TYPES):
+            self.add_error('netbox_tipo', 'Selecione o tipo de servidor.')
+            return cleaned
+        if item.netbox_object_id and (object_id != item.netbox_object_id or kind != item.netbox_object_type):
+            self.add_error('netbox_device', 'O vínculo existente não pode ser trocado por outro servidor.')
+            return cleaned
+        if Servidor.objects.filter(netbox_object_type=kind, netbox_object_id=object_id).exclude(pk=item.pk).exists():
+            self.add_error('netbox_device', 'Este servidor já possui um registro operacional no portal.')
+            return cleaned
+        snapshot = None
+        if not item.netbox_object_id or cleaned.get('atualizar_netbox'):
+            try:
+                snapshot = get_server_snapshot(kind, object_id)
+            except NetBoxError as error:
+                self.add_error('netbox_device', str(error))
+                return cleaned
+            for field, value in snapshot.items():
+                setattr(item, field, value)
+            item.netbox_object_type = kind
+            item.netbox_object_id = object_id
+            item.netbox_atualizado_em = timezone.now()
+            self.fields['netbox_device'].widget.choices = [('', 'Selecione um servidor'), (object_id, item.nome)]
+        changes = {field: cleaned[field] for field in ('nome', 'serie', 'patrimonio', 'descricao')
+                   if field in self.data and field in cleaned and cleaned[field] != (getattr(item, field) or '')}
+        if item.conta == 'FreeIPA':
+            from apps.infra.utils.freeipa_location import get_rede_montagem
+            try:
+                get_rede_montagem(item)
+            except OSError as error:
+                self.add_error(None, str(error))
+        if changes and not self.errors:
+            try:
+                update_server_inventory(kind, object_id, changes)
+            except NetBoxError as error:
+                self.add_error(None, str(error))
+                return cleaned
+            for field, value in changes.items():
+                setattr(item, field, value)
+            item.netbox_atualizado_em = timezone.now()
+        for field in ('nome', 'serie', 'patrimonio', 'descricao'):
+            cleaned[field] = getattr(item, field) or ''
+        return cleaned

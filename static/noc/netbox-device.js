@@ -7,9 +7,13 @@
     const find = root.querySelector('.netbox-device-find');
     const more = root.querySelector('.netbox-device-more');
     const status = root.querySelector('.netbox-device-status');
+    const typeField = select.dataset.objectTypeField
+      ? select.form.querySelector(`[name="${select.dataset.objectTypeField}"]`) : null;
+    let generation = 0;
     let offset = 0;
     let query = '';
     async function search(append = false) {
+      const currentGeneration = generation;
       find.disabled = more.disabled = true;
       status.textContent = 'Consultando o NetBox…';
       const nextQuery = append ? query : input.value.trim();
@@ -18,8 +22,10 @@
         const url = new URL(root.dataset.searchUrl, window.location.origin);
         url.searchParams.set('q', nextQuery);
         url.searchParams.set('offset', nextOffset);
+        if (typeField) url.searchParams.set('object_type', typeField.value);
         const response = await fetch(url, {headers: {'Accept': 'application/json'}, redirect: 'error'});
         const data = await response.json();
+        if (currentGeneration !== generation) return;
         if (!response.ok) throw new Error(data.error || 'Não foi possível buscar equipamentos.');
         if (!append) {
           // Preserve the selected device when the next search returns different results.
@@ -44,7 +50,7 @@
           ? `${data.results.length} equipamento(s) carregado(s). Selecione na lista.`
           : 'Nenhum equipamento encontrado. A seleção anterior foi mantida.';
       } catch (error) {
-        status.textContent = error.message || 'Falha ao consultar o NetBox. Tente novamente.';
+        if (currentGeneration === generation) status.textContent = error.message || 'Falha ao consultar o NetBox. Tente novamente.';
       } finally {
         find.disabled = more.disabled = false;
       }
@@ -58,6 +64,15 @@
       }
     });
     select.addEventListener('change', () => { status.textContent = select.value ? 'Equipamento selecionado.' : ''; });
+    if (typeField) typeField.addEventListener('change', () => {
+      generation += 1;
+      offset = 0;
+      select.replaceChildren(new Option('Selecione um servidor', ''));
+      more.hidden = true;
+      status.textContent = 'Tipo alterado. Faça uma nova busca.';
+      const jquery = window.jQuery;
+      if (jquery && jquery.fn.selectpicker && jquery(select).data('selectpicker')) jquery(select).selectpicker('refresh');
+    });
   }
   function scan(scope = document) {
     scope.querySelectorAll('.netbox-device-picker').forEach(setup);

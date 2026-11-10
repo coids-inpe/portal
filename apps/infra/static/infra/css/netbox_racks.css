@@ -88,6 +88,15 @@
   padding: 0.55rem 1rem;
   cursor: pointer;
 }
+.netbox-device-dialog a.button { display: inline-block; text-decoration: none; }
+.netbox-device-dialog a.button:hover { background: #0d47a1; color: white; }
+.netbox-device-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #cfd8dc;
+}
 .netbox-device-dialog .button:focus-visible {
   outline: 3px solid #172839;
   outline-offset: 2px;

@@ -1,0 +1,14 @@
+{% extends 'admin/change_form.html' %}
+{% block after_field_sets %}
+{{ block.super }}
+<p>Nome, serial, patrimônio e descrição são salvos no NetBox. Modelo, marca, localização e IPs correspondem à última atualização indicada acima. Grupos, tenants e configurações operacionais permanecem no portal.{% if add %} Salve uma vez para habilitar os registros e ações operacionais.{% endif %}</p>
+{% endblock %}
+{% block submit_buttons_extra_bottom %}
+{% if object_id and original.conta == 'Aguardando' and perms.infra.change_servidor %}
+<a href="{% url 'infra:criar_servidor_ldap' object_id %}" class="btn btn-info">Criar no FreeIPA</a>
+<a href="{% url 'infra:criar_servidor_local' object_id %}" class="btn btn-info">Criar com Conta Local</a>
+{% endif %}
+{% if not add and perms.infra.change_servidor %}
+<a href="{% url 'infra:alterar_servidor_status' object_id %}" class="btn btn-danger">{% if original.status == 'Em uso' %}Colocar em Manutenção{% else %}Colocar em uso{% endif %}</a>
+{% endif %}
+{% endblock %}
